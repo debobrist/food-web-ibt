@@ -1,0 +1,2607 @@
+---
+title: "How island characteristics affect enrichment of island flora and fauna: d13C"
+author: "Debora Obrist"
+date: "23/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This analysis shows how island characteristics affect levels of enrichment in island flora and fauna. 
+# Set up: 
+```{r, echo = FALSE, warning = FALSE, include = FALSE}
+rm(list = ls())
+set.seed(123)
+
+library(tidyverse)
+library(patchwork)
+library(lme4)
+library(MuMIn)
+library(glmmTMB)
+library(DHARMa)
+library(MASS)
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+df <- read.csv("food-web-ibt-2021.csv")
+```
+
+# Models by species: 
+```{r}
+# SOIL: 
+soil_dat <- df %>% 
+  dplyr::filter(taxon == "soil") %>% 
+  dplyr::filter(!is.na(shoredist)) %>% # remove 4 NAs for distance to shoredist
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack))
+
+soil_mod <- glmmTMB(d13c ~ l.area.std * ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                    data = soil_dat, 
+                    na.action = "na.fail",
+                    REML = FALSE)
+
+r.squaredGLMM(soil_mod) # Marginal (fixed): 0.11, conditional (inc random): 0.34
+
+soil_dredge <- dredge(soil_mod)
+soil_mods <- get.models(soil_dredge, subset = TRUE)
+soil_avg <- model.avg(soil_mods, fit = TRUE) 
+
+saveRDS(soil_avg, "soil_avg_mod-c.rds")
+
+# SAL:
+SAL_dat <- df %>% 
+  dplyr::filter(taxon == "SAL") %>% 
+  dplyr::filter(!is.na(shoredist)) %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack))
+
+
+SAL_mod <- glmmTMB(d13c ~ l.area.std * ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = SAL_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+r.squaredGLMM(SAL_mod) # Marginal (fixed): 0.17, conditional (inc random): 0.39
+
+SAL_dredge <- dredge(SAL_mod)
+SAL_avg <- model.avg(SAL_dredge, fit = TRUE) 
+saveRDS(SAL_avg, "SAL_avg_mod-c.rds")
+
+FLV_dat <- df %>% 
+  dplyr::filter(taxon == "FLV") %>% 
+  dplyr::filter(!is.na(shoredist)) %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::filter(d13c < -16) %>% 
+  dplyr::filter(d13c > -40) # These values are likely mistakes
+
+FLV_mod <- glmmTMB(d13c ~ l.area.std * ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = FLV_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+r.squaredGLMM(FLV_mod) # Marginal (fixed): 0.23, conditional (inc random): 0.39
+
+FLV_dredge <- dredge(FLV_mod)
+FLV_avg <- model.avg(FLV_dredge, fit = TRUE) 
+saveRDS(FLV_avg, "FLV_avg_mod-c.rds")
+
+CUR_dat <- df %>% 
+  dplyr::filter(taxon == "CUR") %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack))
+
+CUR_mod <- glmmTMB(d13c ~ l.area.std * ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = CUR_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+r.squaredGLMM(CUR_mod) # Marginal (fixed): 0.04, conditional (inc random): 0.23
+
+CUR_dredge <- dredge(CUR_mod)
+CUR_avg <- model.avg(CUR_dredge, fit = TRUE) 
+saveRDS(CUR_avg, "CUR_avg_mod-c.rds")
+
+ISO_dat <- df %>% 
+  dplyr::filter(taxon == "ISO") %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack))
+
+ISO_mod <- glmmTMB(d13c ~ l.area.std * ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = ISO_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+r.squaredGLMM(ISO_mod) # Marginal (fixed): 0.14, conditional (inc random): 0.43
+
+ISO_dredge <- dredge(ISO_mod)
+ISO_avg <- model.avg(ISO_dredge, fit = TRUE) 
+saveRDS(ISO_avg, "ISO_avg_mod-c.rds")
+
+COL_dat <- df %>% 
+  dplyr::filter(taxon == "COL") %>%
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack))
+
+COL_mod <- glmmTMB(d13c ~ l.area.std * ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = COL_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+r.squaredGLMM(COL_mod) # Marginal (fixed): 0.07, conditional (inc random): 0.28
+
+COL_dredge <- dredge(COL_mod)
+COL_avg <- model.avg(COL_dredge, fit = TRUE) 
+saveRDS(COL_avg, "COL_avg_mod-c.rds")
+
+feces_dat <- df %>% 
+  dplyr::filter(taxon == "feces") %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack))
+
+feces_mod <- glmmTMB(d13c ~ l.area.std * ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                     data = feces_dat, 
+                     na.action = "na.fail",
+                     REML = FALSE)
+
+r.squaredGLMM(feces_mod) # Marginal (fixed): 0.05, conditional (inc random): 0.09
+
+feces_dredge <- dredge(feces_mod)
+feces_avg <- model.avg(feces_dredge, fit = TRUE) 
+saveRDS(feces_avg, "feces_avg_mod-c.rds")
+
+feather_dat <- df %>% 
+  dplyr::filter(taxon == "feather") %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack))
+
+feather_mod <- glmmTMB(d13c ~ l.area.std * ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                       data = feather_dat, 
+                       na.action = "na.fail",
+                       REML = FALSE)
+
+r.squaredGLMM(feather_mod) # Marginal (fixed): 0.08, conditional (inc random): 0.08
+
+feather_dredge <- dredge(feather_mod)
+feather_avg <- model.avg(feather_dredge, fit = TRUE) 
+saveRDS(feather_avg, "feather_avg_mod-c.rds")
+```
+
+# Check model diagnostics: 
+```{r}
+performance::check_collinearity(soil_mod)
+
+# png("figures/diagnostics/soil-d13c-qq.png", units = "px", width = 300, height = 300)
+qqnorm(resid(soil_mod), col = "grey50")
+qqline(resid(soil_mod))
+# dev.off()
+
+# png("figures/diagnostics/soil-d13c-fitresid.png", units = "px", width = 600, height = 450)
+simulateResiduals(fittedModel = soil_mod, plot = T)
+# dev.off()
+
+#png("figures/diagnostics/soil-d13c-qq.png", units = "px", width = 300, height = 300)
+hist(resid(soil_mod), col = "grey50")
+# dev.off()
+
+# Check individual predictors. This will work if run in sequence but will rewrite simulated_resids for each model as they are run.
+simulated_resids <- simulateResiduals(fittedModel = soil_mod)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = soil_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = soil_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = soil_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = soil_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# Salal: 
+performance::check_collinearity(SAL_mod)
+
+# png("figures/diagnostics/SAL-d13c-qq.png", units = "px", width = 300, height = 300)
+qqnorm(resid(SAL_mod), col = "#1B7837") 
+qqline(resid(SAL_mod))
+# dev.off()
+
+# png("figures/diagnostics/SAL-d13c-fitresid.png", units = "px", width = 600, height = 450)
+simulateResiduals(fittedModel = SAL_mod, plot = T)
+# dev.off()
+
+png("figures/diagnostics/SAL-d13c-hist.png", units = "px", width = 300, height = 300)
+hist(resid(SAL_mod), col = "#1B7837")
+dev.off()
+
+# Check individual predictors. 
+simulated_resids <- simulateResiduals(fittedModel = SAL_mod)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = SAL_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = SAL_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = SAL_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = SAL_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Looks good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # Significant but going to leave them in. They look reasonable based on this histogram:
+hist(SAL_dat$d13c)
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# FLV:
+performance::check_collinearity(FLV_mod)
+
+# png("figures/diagnostics/FLV-d13c-qq.png", units = "px", width = 300, height = 300)
+qqnorm(resid(FLV_mod), col = "#7FBF7B")
+qqline(resid(FLV_mod))
+# dev.off()
+
+#png("figures/diagnostics/FLV-d13c-fitresid.png", units = "px", width = 600, height = 450)
+simulateResiduals(fittedModel = FLV_mod, plot = T)
+# dev.off()
+
+# png("figures/diagnostics/FLV-d13c-hist.png", units = "px", width = 300, height = 300)
+hist(resid(FLV_mod), col = "#7FBF7B")
+# dev.off()
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = FLV_mod)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = FLV_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = FLV_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = FLV_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = FLV_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine. Removed problematic ones that looked like possible isotope misreads when making the FLV_dat df above.
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# CUR: 
+performance::check_collinearity(CUR_mod)
+
+# png("figures/diagnostics/CUR-d13c-qq.png", units = "px", width = 300, height = 300)
+qqnorm(resid(CUR_mod), col = "#D9F0D3")
+qqline(resid(CUR_mod))
+# dev.off()
+
+# png("figures/diagnostics/CUR-d13c-fitresid.png", units = "px", width = 600, height = 450)
+DHARMa::simulateResiduals(fittedModel = CUR_mod, plot = T)
+# dev.off()
+
+#png("figures/diagnostics/CUR-d13c-hist.png", units = "px", width = 300, height = 300)
+hist(resid(CUR_mod), col = "#D9F0D3")
+#dev.off()
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = CUR_mod)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = CUR_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = CUR_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = CUR_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = CUR_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# ISO: 
+performance::check_collinearity(ISO_mod)
+
+#png("figures/diagnostics/ISO-d13c-qq.png", units = "px", width = 300, height = 300)
+qqnorm(resid(ISO_mod), col = "#E7D4E8")
+qqline(resid(ISO_mod))
+#dev.off()
+
+#png("figures/diagnostics/ISO-d13c-fitresid.png", units = "px", width = 600, height = 450)
+DHARMa::simulateResiduals(fittedModel = ISO_mod, plot = T)
+# dev.off()
+
+# png("figures/diagnostics/ISO-d13c-hist.png", units = "px", width = 300, height = 300)
+hist(resid(ISO_mod), col = "#E7D4E8")
+# dev.off()
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = ISO_mod)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = ISO_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = ISO_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = ISO_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = ISO_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# COL: 
+performance::check_collinearity(COL_mod)
+
+#png("figures/diagnostics/COL-d13c-qq.png", units = "px", width = 300, height = 300)
+qqnorm(resid(COL_mod), col = "#AF8DC3")
+qqline(resid(COL_mod))
+#dev.off()
+
+#png("figures/diagnostics/COL-d13c-fitresid.png", units = "px", width = 600, height = 450)
+DHARMa::simulateResiduals(fittedModel = COL_mod, plot = T)
+#dev.off()
+
+#png("figures/diagnostics/COL-d13c-hist.png", units = "px", width = 300, height = 300)
+hist(resid(COL_mod), col = "#AF8DC3") # looks alright?
+# dev.off()
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = COL_mod)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = COL_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = COL_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = COL_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = COL_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Not ideal but maybe good enough to maintain consistency with other models.
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# Feces 
+performance::check_collinearity(feces_mod)
+
+# png("figures/diagnostics/feces-d13c-qq.png", units = "px", width = 300, height = 300)
+qqnorm(resid(feces_mod), col = "#762A83")
+qqline(resid(feces_mod))
+# dev.off()
+
+# png("figures/diagnostics/feces-d13c-fitresid.png", units = "px", width = 600, height = 450)
+DHARMa::simulateResiduals(fittedModel = feces_mod, plot = T)
+# dev.off()
+
+# png("figures/diagnostics/feces-d13c-hist.png", units = "px", width = 300, height = 300)
+hist(resid(feces_mod), col = "#762A83")
+# dev.off()
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = feces_mod)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = feces_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feces_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feces_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feces_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Also not ideal but maybe good enough to maintain consistency!
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # Significant outlier test - 8 / 241 observations. 
+hist(feces_dat$d13c) # They don't look super unreasonable though. Keeping them.
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# Feathers: 
+performance::check_collinearity(feather_mod)
+
+# png("figures/diagnostics/feather-d13c-qq.png", units = "px", width = 300, height = 300)
+qqnorm(resid(feather_mod), col = "#762A83")
+qqline(resid(feather_mod))
+# dev.off()
+
+#png("figures/diagnostics/feather-d13c-fitresid.png", units = "px", width = 300, height = 300)
+DHARMa::simulateResiduals(fittedModel = feather_mod, plot = T)
+# dev.off()
+
+# png("figures/diagnostics/feather-d13c-hist.png", units = "px", width = 300, height = 300)
+hist(resid(feather_mod), col = "#762A83")
+# dev.off()
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = feather_mod)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = feather_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feather_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feather_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feather_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Not good but keeping models the same for consistency so "good enough"! 
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # 9/337 outliers
+hist(feather_dat$d13c) # That really high one might be a mistake? Not using d13c of feathers in main analysis anyways though. 
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+```
+
+# Results:
+## 1.) Make table of RVIs
+```{r}
+MuMIn::importance(soil_avg)
+MuMIn::importance(SAL_avg)
+MuMIn::importance(FLV_avg)
+MuMIn::importance(CUR_avg)
+MuMIn::importance(ISO_avg)
+MuMIn::importance(COL_avg)
+MuMIn::importance(feces_avg)
+MuMIn::importance(feather_avg)
+```
+## 2.) Coefplot: 
+Feces:
+```{r}
+# soil_avg <- readRDS("soil_avg_mod-c.rds")
+# SAL_avg <- readRDS("SAL_avg_mod-c.rds")
+# FLV_avg <- readRDS("FLV_avg_mod-c.rds")
+# CUR_avg <- readRDS("CUR_avg_mod-c.rds")
+# ISO_avg <- readRDS("ISO_avg_mod-c.rds")
+# COL_avg <- readRDS("COL_avg_mod-c.rds")
+# feces_avg <- readRDS("feces_avg_mod-c.rds")
+# feather_avg <- readRDS("feather_avg_mod-c.rds")
+
+params <- factor(c("cond(slope.std)", "cond(sqrt.wrack.std)", "cond(l.area.std:ln.shoredist.std)", "cond(ln.shoredist.std)", "cond(l.area.std)"))
+
+# SOIL: 
+soil.coefs <- coefTable(soil_avg, full = FALSE)
+soil.coefs <- as.data.frame(soil.coefs)
+soil.coefs$parameters <- rownames(soil.coefs)
+soil.coefs$df <- NULL
+names(soil.coefs) <- c("fit", "fit.se", "parameter")
+
+soil.coefs$parameter <- factor(soil.coefs$parameter, levels = params)
+
+soil.coefs <- soil.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# Salal: 
+SAL.coefs <- coefTable(SAL_avg, full = FALSE)
+SAL.coefs <- as.data.frame(SAL.coefs)
+SAL.coefs$parameters <- rownames(SAL.coefs)
+SAL.coefs$df <- NULL
+names(SAL.coefs) <- c("fit", "fit.se", "parameter")
+
+SAL.coefs$parameter <- factor(SAL.coefs$parameter, levels = params)
+
+SAL.coefs <- SAL.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# FLV: 
+FLV.coefs <- coefTable(FLV_avg, full = FALSE)
+FLV.coefs <- as.data.frame(FLV.coefs)
+FLV.coefs$parameters <- rownames(FLV.coefs)
+FLV.coefs$df <- NULL
+names(FLV.coefs) <- c("fit", "fit.se", "parameter")
+
+FLV.coefs$parameter <- factor(FLV.coefs$parameter, levels = params)
+
+FLV.coefs <- FLV.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# CUR:
+CUR.coefs <- coefTable(CUR_avg, full = FALSE)
+CUR.coefs <- as.data.frame(CUR.coefs)
+CUR.coefs$parameters <- rownames(CUR.coefs)
+CUR.coefs$df <- NULL
+names(CUR.coefs) <- c("fit", "fit.se", "parameter")
+
+CUR.coefs$parameter <- factor(CUR.coefs$parameter, levels = params)
+
+CUR.coefs <- CUR.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# ISO: 
+ISO.coefs <- coefTable(ISO_avg, full = FALSE)
+ISO.coefs <- as.data.frame(ISO.coefs)
+ISO.coefs$parameters <- rownames(ISO.coefs)
+ISO.coefs$df <- NULL
+names(ISO.coefs) <- c("fit", "fit.se", "parameter")
+
+ISO.coefs$parameter <- factor(ISO.coefs$parameter, levels = params)
+
+ISO.coefs <- ISO.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# COL: 
+COL.coefs <- coefTable(COL_avg, full = FALSE)
+COL.coefs <- as.data.frame(COL.coefs)
+COL.coefs$parameters <- rownames(COL.coefs)
+COL.coefs$df <- NULL
+names(COL.coefs) <- c("fit", "fit.se", "parameter")
+
+COL.coefs$parameter <- factor(COL.coefs$parameter, levels = params)
+
+COL.coefs <- COL.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# feces: 
+feces.coefs <- coefTable(feces_avg, full = FALSE)
+feces.coefs <- as.data.frame(feces.coefs)
+feces.coefs$parameters <- rownames(feces.coefs)
+feces.coefs$df <- NULL
+names(feces.coefs) <- c("fit", "fit.se", "parameter")
+
+feces.coefs$parameter <- factor(feces.coefs$parameter, levels = params)
+
+feces.coefs <- feces.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+param.labs <- c("mean slope", "sqrt(wrack biomass)", "log10(distance to shore)", "log10(island area)")
+
+soil.coefs$taxon <- "soil"
+SAL.coefs$taxon <- "SAL"
+FLV.coefs$taxon <- "FLV"
+CUR.coefs$taxon <- "CUR"
+ISO.coefs$taxon <- "ISO"
+COL.coefs$taxon <- "COL"
+feces.coefs$taxon <- "feces"
+
+coefs <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feces.coefs)
+
+coefs$taxon <- factor(coefs$taxon, 
+                      levels = c("feces", "COL", "ISO", "CUR", "FLV", "SAL", "soil"),  
+                      labels = c("songbirds", "carnivores (beetles)", "detritivores (isopods)", "herbivores (weevils)", "false lily-of-the-valley", "salal", "soil")) 
+
+coefs$parameter <- factor(coefs$parameter, 
+                          levels = c("cond(l.area.std)", "cond(ln.shoredist.std)", "cond(l.area.std:ln.shoredist.std)", "cond(sqrt.wrack.std)", "cond(slope.std)"),
+                          labels = c("Island area", "Distance to shore", "Island area * distance", "Wrack biomass", "Mean island slope"))
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+coefs_c <- coefs
+
+panel_coefplot_d13c <- ggplot(coefs_c, aes(x = taxon, y = fit, colour = taxon)) + 
+  theme_bw() +
+  geom_hline(yintercept = 0, col = "grey50", linetype = "dashed") + 
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = (fit - 1.96 * fit.se), 
+                    ymax = (fit + 1.96 * fit.se), 
+                    width = 0)) +
+  facet_wrap(~ parameter, nrow = 5, strip.position = "left") + 
+  theme(panel.grid = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        axis.text.x = element_text(size = 12),
+        strip.text.y.left  = element_blank(),
+        strip.background = element_blank(),
+        legend.title = element_blank(), 
+        axis.title.x = element_text(size = 16), 
+        legend.position = 'none',
+        legend.text = element_text(size = 12)) + 
+  ylab((expression(paste("\n"," ", delta^{13}, "C coef")))) +
+  xlab("") +
+  scale_color_manual(values = color_pal) + 
+  scale_y_continuous(limits = c(-1.5, 0.52), 
+                     breaks = c(-1.5, -1, -0.5, 0, 0.5)) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  coord_flip();panel_coefplot_d13c
+```
+Feathers:
+```{r}
+# feathers: 
+feather.coefs <- coefTable(feather_avg, full = FALSE)
+feather.coefs <- as.data.frame(feather.coefs)
+feather.coefs$parameters <- rownames(feather.coefs)
+feather.coefs$df <- NULL
+names(feather.coefs) <- c("fit", "fit.se", "parameter")
+
+feather.coefs$parameter <- factor(feather.coefs$parameter, levels = params)
+
+feather.coefs <- feather.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+param.labs <- c("mean slope", "sqrt(wrack biomass)", "log10(distance to shore)", "log10(island area)")
+
+soil.coefs$taxon <- "soil"
+SAL.coefs$taxon <- "SAL"
+FLV.coefs$taxon <- "FLV"
+CUR.coefs$taxon <- "CUR"
+ISO.coefs$taxon <- "ISO"
+COL.coefs$taxon <- "COL"
+feather.coefs$taxon <- "feather"
+
+coefs_c <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feather.coefs)
+
+coefs_c$taxon <- factor(coefs_c$taxon, 
+                      levels = c("feather", "COL", "ISO", "CUR", "FLV", "SAL", "soil"),  
+                      labels = c("songbirds - feathers", "carnivores (beetles)", "detritivores (isopods)", "herbivores (weevils)", "false lily-of-the-valley", "salal", "soil")) 
+
+coefs_c$parameter <- factor(coefs_c$parameter, 
+                          levels = c("cond(l.area.std)", "cond(ln.shoredist.std)", "cond(l.area.std:ln.shoredist.std)", "cond(sqrt.wrack.std)", "cond(slope.std)"),
+                          labels = c("Island area", "Distance to shore", "Island area * distance", "Wrack biomass", "Mean island slope"))
+
+panel_d13c_feathers <- ggplot(coefs_c, aes(x = taxon, y = fit, colour = taxon)) + 
+  theme_bw() +
+  geom_hline(yintercept = 0, col = "grey50", linetype = "dashed") + 
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = (fit - 1.96 * fit.se), 
+                    ymax = (fit + 1.96 * fit.se), 
+                    width = 0)) +
+  facet_wrap(~ parameter, nrow = 5, strip.position = "left") + 
+  theme(panel.grid = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        axis.text.x = element_text(size = 12),
+        strip.text.y.left  = element_blank(),
+        strip.background = element_blank(),
+        legend.title = element_blank(), 
+        axis.title.x = element_text(size = 16), 
+        legend.text = element_text(size = 12), 
+        legend.position = "top") +
+  # legend.key.size = unit(0.3, "cm")) +
+  ylab((expression(paste("\n"," ", delta^{13}, "C coef")))) +
+  xlab("") +
+  scale_color_manual(values = color_pal) + 
+  scale_y_continuous(limits = c(-1.5, 0.5), 
+                     breaks = c(-1.5, -1, -0.5, 0, 0.5)) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  coord_flip();panel_coefplot_d13c
+
+coefs_table <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feces.coefs, feather.coefs)
+# write.csv(coefs_table, "d13c-coef-table.csv")
+```
+
+## 3.) Biplots:
+#### Area:
+Bootstrapped CIs and PIs: 
+```{r}
+# Simulate the uncertainty in parameter estimates and generate 95% credible intervals
+coef_a <- c(soil_mod$fit$par[1:6]) # Extract the point estimates for coefficients from your model (eg. intercept and slope)
+coef_b <- c(SAL_mod$fit$par[1:6])
+coef_c <- c(FLV_mod$fit$par[1:6])
+coef_d <- c(CUR_mod$fit$par[1:6])
+coef_e <- c(ISO_mod$fit$par[1:6])
+coef_f <- c(COL_mod$fit$par[1:6])
+coef_g <- c(feces_mod$fit$par[1:6])
+coef_h <- c(feather_mod$fit$par[1:6])
+
+vcov_a <- vcov(soil_mod)[[1]] # Variance-covariance matrix of the parameter estimates
+vcov_b <- vcov(SAL_mod)[[1]]
+vcov_c <- vcov(FLV_mod)[[1]]
+vcov_d <- vcov(CUR_mod)[[1]]
+vcov_e <- vcov(ISO_mod)[[1]]
+vcov_f <- vcov(COL_mod)[[1]]
+vcov_g <- vcov(feces_mod)[[1]]
+vcov_h <- vcov(feather_mod)[[1]]
+
+pars.resamp.a <- mvrnorm(500, mu = coef_a, Sigma = vcov_a) # Multivariate normal simulation of errors - gives the mean and the VCV matrix
+pars.resamp.b <- mvrnorm(500, mu = coef_b, Sigma = vcov_b)
+pars.resamp.c <- mvrnorm(500, mu = coef_c, Sigma = vcov_c)
+pars.resamp.d <- mvrnorm(500, mu = coef_d, Sigma = vcov_d)
+pars.resamp.e <- mvrnorm(500, mu = coef_e, Sigma = vcov_e)
+pars.resamp.f <- mvrnorm(500, mu = coef_f, Sigma = vcov_f)
+pars.resamp.g <- mvrnorm(500, mu = coef_g, Sigma = vcov_g)
+pars.resamp.h <- mvrnorm(500, mu = coef_h, Sigma = vcov_h)
+
+x.a <- seq(min(soil_dat$l.area.std), max(soil_dat$l.area.std), length.out = 1000) # dummy variable for your predictor 
+x.b <- seq(min(SAL_dat$l.area.std), max(SAL_dat$l.area.std), length.out = 1000)
+x.c <- seq(min(FLV_dat$l.area.std), max(FLV_dat$l.area.std), length.out = 1000)
+x.d <- seq(min(CUR_dat$l.area.std), max(CUR_dat$l.area.std), length.out = 1000)
+x.e <- seq(min(ISO_dat$l.area.std), max(ISO_dat$l.area.std), length.out = 1000)
+x.f <- seq(min(COL_dat$l.area.std), max(COL_dat$l.area.std), length.out = 1000)
+x.g <- seq(min(feces_dat$l.area.std), max(feces_dat$l.area.std), length.out = 1000)
+x.h <- seq(min(feather_dat$l.area.std), max(feather_dat$l.area.std), length.out = 1000)
+
+y.conf <- list() #Create an empty list for the estimate y values for each simulation run
+
+# Create dataframe for each value of X, the limits on y from the simulation
+pred.frame.a <-  expand.grid(x = x.a,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.b <-  expand.grid(x = x.b,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.c <-  expand.grid(x = x.c,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.d <-  expand.grid(x = x.d,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.e <-  expand.grid(x = x.e,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.f <-  expand.grid(x = x.f,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.g <-  expand.grid(x = x.g,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.h <-  expand.grid(x = x.h,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+# Soil model:
+# Calculate additional variance due to random effects & random noise: 
+summary(soil_mod)
+sqrt(0.1749 + 0.4980) # 0.8203048
+y.conf <- list() 
+
+for(z in 1:length(x.a)){
+  y.conf[[z]] <- pars.resamp.a[,1] + pars.resamp.a[,2] * x.a[z]  # fit the estimate based on the sampled intercept and slopes
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.a[t,1] + pars.resamp.a[t,2]*x.a[z], 0.8203048)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.a[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.a[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.a[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.a[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.a[z,6] <- coef_a[1] + coef_a[2] * x.a[z]
+}
+
+# Salal model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(SAL_mod)
+sqrt(0.6701 + 1.8397) # 1.584235
+y.conf <- list() 
+
+for(z in 1:length(x.b)){
+  y.conf[[z]] <- pars.resamp.b[,1] + pars.resamp.b[,2] * x.b[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.b[t,1] + pars.resamp.b[t,2]*x.b[z], 1.584235)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.b[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.b[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.b[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.b[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.b[z,6] <- coef_b[1] + coef_b[2] * x.b[z]
+}
+
+# False lily-of-the-Valley model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(FLV_mod)
+sqrt(0.9943 + 3.6739) # 2.160602
+y.conf <- list() 
+
+for(z in 1:length(x.c)){
+  y.conf[[z]] <- pars.resamp.c[,1] + pars.resamp.c[,2] * x.c[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.c[t,1] + pars.resamp.c[t,2]*x.c[z], 2.160602)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.c[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.c[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.c[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.c[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.c[z,6] <- coef_c[1] + coef_c[2] * x.c[z]
+}
+
+
+# Herbivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(CUR_mod)
+sqrt(0.0803  + 0.3351) # 0.6445153
+y.conf <- list() 
+
+for(z in 1:length(x.d)){
+  y.conf[[z]] <- pars.resamp.d[,1] + pars.resamp.d[,2] * x.d[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.d[t,1] + pars.resamp.d[t,2]*x.d[z], 0.6445153)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.d[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.d[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.d[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.d[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.d[z,6] <- coef_d[1] + coef_d[2] * x.d[z]
+}
+
+# Detritivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(ISO_mod)
+sqrt(0.4129 + 0.8122) # 1.106842
+y.conf <- list() 
+
+for(z in 1:length(x.e)){
+  y.conf[[z]] <- pars.resamp.e[,1] + pars.resamp.e[,2] * x.e[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.e[t,1] + pars.resamp.e[t,2]*x.e[z], 1.106842)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.e[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.e[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.e[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.e[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.e[z,6] <- coef_e[1] + coef_e[2] * x.e[z]
+}
+
+# Carnivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(COL_mod)
+sqrt(0.4041 + 1.3696) # 1.331803
+y.conf <- list() 
+
+for(z in 1:length(x.f)){
+  y.conf[[z]] <- pars.resamp.f[,1] + pars.resamp.f[,2] * x.f[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.f[t,1] + pars.resamp.f[t,2]*x.f[z], 1.331803)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.f[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.f[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.f[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.f[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.f[z,6] <- coef_f[1] + coef_f[2] * x.f[z]
+}
+
+# Songbird (feces) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feces_mod)
+sqrt(0.1252 + 3.1541) # 1.810884
+y.conf <- list() 
+
+for(z in 1:length(x.g)){
+  y.conf[[z]] <- pars.resamp.g[,1] + pars.resamp.g[,2] * x.g[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.g[t,1] + pars.resamp.g[t,2]*x.g[z], 1.810884)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.g[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.g[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.g[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.g[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.g[z,6] <- coef_g[1] + coef_g[2] * x.g[z]
+}
+
+# Songbird (feather) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feather_mod)
+sqrt(5.473e-09 + 2.257e+00) #  1.502332
+y.conf <- list() 
+
+for(z in 1:length(x.h)){
+  y.conf[[z]] <- pars.resamp.h[,1] + pars.resamp.h[,2] * x.h[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.h[t,1] + pars.resamp.h[t,2]*x.h[z],  1.502332)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.h[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.h[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.h[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.h[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.h[z,6] <- coef_h[1] + coef_h[2] * x.h[z]
+}
+```
+
+Plot: 
+```{r}
+pred.frame.a <- pred.frame.a %>% 
+  rename(l.area.std = x, d13c = m)
+write.csv(pred.frame.a, "soil-preds-area-d13c.csv", row.names = FALSE)
+
+pred.frame.b <- pred.frame.b %>% 
+  rename(l.area.std = x, d13c = m)
+write.csv(pred.frame.b, "SAL-preds-area-d13c.csv", row.names = FALSE)
+
+
+pred.frame.c <- pred.frame.c %>% 
+  rename(l.area.std = x, d13c = m)
+write.csv(pred.frame.c, "FLV-preds-area-d13c.csv", row.names = FALSE)
+
+
+pred.frame.d <- pred.frame.d %>% 
+  rename(l.area.std = x, d13c = m)
+write.csv(pred.frame.d, "CUR-preds-area-d13c.csv", row.names = FALSE)
+
+
+pred.frame.e <- pred.frame.e %>% 
+  rename(l.area.std = x, d13c = m)
+write.csv(pred.frame.e, "ISO-preds-area-d13c.csv", row.names = FALSE)
+
+
+pred.frame.f <- pred.frame.f %>% 
+  rename(l.area.std = x, d13c = m)
+write.csv(pred.frame.f, "COL-preds-area-d13c.csv", row.names = FALSE)
+
+
+pred.frame.g <- pred.frame.g %>% 
+  rename(l.area.std = x, d13c = m)
+write.csv(pred.frame.g, "feces-preds-area-d13c.csv", row.names = FALSE)
+
+
+pred.frame.h <- pred.frame.h %>% 
+  rename(l.area.std = x, d13c = m)
+write.csv(pred.frame.h, "feather-preds-area-d13c.csv", row.names = FALSE)
+
+
+
+
+xbreaks.area <- c(((log10(100)-mean(df$l.area) / sd(df$l.area))),
+                  ((log10(1000)-mean(df$l.area) / sd(df$l.area))),
+                  ((log10(10000)-mean(df$l.area) / sd(df$l.area))),
+                  ((log10(100000)-mean(df$l.area) / sd(df$l.area))), 
+                  ((log10(1000000)-mean(df$l.area) / sd(df$l.area))))
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+# Feces, with PI: 
+area_d13c_plot <- ggplot(NULL, aes(y = d13c, x = l.area.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) + 
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) + 
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) + 
+  geom_point(data = feces_dat, alpha = 0.1, colour = color_pal[1], size = 2) + 
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) + 
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) + 
+ geom_line(data = pred.frame.a, aes(y = d13c), colour = color_pal[7]) +
+ geom_ribbon(data = pred.frame.a, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) +
+ geom_ribbon(data = pred.frame.a, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[7]) +
+  geom_line(data = pred.frame.b, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) + 
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[5]) +
+  geom_line(data = pred.frame.f, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.g, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[1]) +
+  geom_line(data = pred.frame.d, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[3]) +
+  xlab(expression(log[{10}]~island~area~(m^{"2"}))) +
+  scale_x_continuous(breaks = xbreaks.area,
+                     limits = c(-2.4, 2.5),
+                     labels = c("100", "1 000", "10 000", "100 000", "1 000 000")) +
+  ylab(expression(paste("\n"," ", delta^{13}, "C")))
+
+tiff("figures/area-d13c-bootstrapped-w-PI.tiff", units = "px", res = 300, width = 1600, height = 1400)
+area_d13c_plot
+dev.off()
+
+# Feces, just CI: 
+area_d13c_plot2 <- ggplot(NULL, aes(y = d13c, x = l.area.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) + 
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) + 
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) + 
+  geom_point(data = feces_dat, alpha = 0.1, colour = color_pal[1], size = 2) + 
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) + 
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) + 
+  geom_line(data = pred.frame.a, aes(y = d13c), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_line(data = pred.frame.b, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) + 
+  geom_line(data = pred.frame.c, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) + 
+  geom_line(data = pred.frame.f, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) + 
+  geom_line(data = pred.frame.g, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) + 
+  geom_line(data = pred.frame.d, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) + 
+  geom_line(data = pred.frame.e, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) + 
+  xlab(expression(log[{10}]~island~area~(m^{"2"}))) +
+  scale_x_continuous(breaks = xbreaks.area,
+                     limits = c(-2.4, 2.5),
+                     labels = c("100", "1 000", "10 000", "100 000", "1 000 000")) +
+  ylab(expression(paste("\n"," ", delta^{13}, "C")))
+
+tiff("figures/area-d13c-bootstrapped-w-CI.tiff", units = "px", res = 300, width = 1600, height = 1400)
+area_d13c_plot2
+dev.off()
+
+# Feather, with PI: 
+area_d13c_plot3 <- ggplot(NULL, aes(y = d13c, x = l.area.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) + 
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) + 
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) + 
+  geom_point(data = feather_dat, alpha = 0.1, colour = color_pal[1], size = 2) + 
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) + 
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) + 
+  geom_line(data = pred.frame.a, aes(y = d13c), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_ribbon(data = pred.frame.a, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[7]) +
+  geom_line(data = pred.frame.b, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) + 
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) + 
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[5]) +
+  geom_line(data = pred.frame.f, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) + 
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.h, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.h, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) + 
+  geom_ribbon(data = pred.frame.h, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[1]) +
+  geom_line(data = pred.frame.d, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) + 
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) + 
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[3]) +
+  xlab(expression(log[{10}]~island~area~(m^{"2"}))) +
+  scale_x_continuous(breaks = xbreaks.area,
+                     limits = c(-2.4, 2.5),
+                     labels = c("100", "1 000", "10 000", "100 000", "1 000 000")) +
+  ylab(expression(paste("\n"," ", delta^{13}, "C")))
+
+tiff("figures/area-d13c-bootstrapped-w-PI-feathers.tiff", units = "px", res = 300, width = 1600, height = 1400)
+area_d13c_plot3
+dev.off()
+
+
+```
+
+#### Distance to shore:
+Bootstrapped CIs and PIs: 
+```{r}
+# Simulate the uncertainty in parameter estimates and generate 95% credible intervals
+coef_a <- c(soil_mod$fit$par[1:6]) # Extract the point estimates for coefficients from your model (eg. intercept and slope)
+coef_b <- c(SAL_mod$fit$par[1:6])
+coef_c <- c(FLV_mod$fit$par[1:6])
+coef_d <- c(CUR_mod$fit$par[1:6])
+coef_e <- c(ISO_mod$fit$par[1:6])
+coef_f <- c(COL_mod$fit$par[1:6])
+coef_g <- c(feces_mod$fit$par[1:6])
+coef_h <- c(feather_mod$fit$par[1:6])
+
+vcov_a <- vcov(soil_mod)[[1]] # Variance-covariance matrix of the parameter estimates
+vcov_b <- vcov(SAL_mod)[[1]]
+vcov_c <- vcov(FLV_mod)[[1]]
+vcov_d <- vcov(CUR_mod)[[1]]
+vcov_e <- vcov(ISO_mod)[[1]]
+vcov_f <- vcov(COL_mod)[[1]]
+vcov_g <- vcov(feces_mod)[[1]]
+vcov_h <- vcov(feather_mod)[[1]]
+
+pars.resamp.a <- mvrnorm(500, mu = coef_a, Sigma = vcov_a) # Multivariate normal simulation of errors - gives the mean and the VCV matrix
+pars.resamp.b <- mvrnorm(500, mu = coef_b, Sigma = vcov_b)
+pars.resamp.c <- mvrnorm(500, mu = coef_c, Sigma = vcov_c)
+pars.resamp.d <- mvrnorm(500, mu = coef_d, Sigma = vcov_d)
+pars.resamp.e <- mvrnorm(500, mu = coef_e, Sigma = vcov_e)
+pars.resamp.f <- mvrnorm(500, mu = coef_f, Sigma = vcov_f)
+pars.resamp.g <- mvrnorm(500, mu = coef_g, Sigma = vcov_g)
+pars.resamp.h <- mvrnorm(500, mu = coef_h, Sigma = vcov_h)
+
+x.a2 <- seq(min(soil_dat$ln.shoredist.std), max(soil_dat$ln.shoredist.std), length.out = 1000) # dummy variable for your predictor 
+x.b2 <- seq(min(SAL_dat$ln.shoredist.std), max(SAL_dat$ln.shoredist.std), length.out = 1000)
+x.c2 <- seq(min(FLV_dat$ln.shoredist.std), max(FLV_dat$ln.shoredist.std), length.out = 1000)
+x.d2 <- seq(min(CUR_dat$ln.shoredist.std), max(CUR_dat$ln.shoredist.std), length.out = 1000)
+x.e2 <- seq(min(ISO_dat$ln.shoredist.std), max(ISO_dat$ln.shoredist.std), length.out = 1000)
+x.f2 <- seq(min(COL_dat$ln.shoredist.std), max(COL_dat$ln.shoredist.std), length.out = 1000)
+x.g2 <- seq(min(feces_dat$ln.shoredist.std), max(feces_dat$ln.shoredist.std), length.out = 1000)
+x.h2 <- seq(min(feather_dat$ln.shoredist.std), max(feather_dat$ln.shoredist.std), length.out = 1000)
+
+y.conf <- list() #Create an empty list for the estimate y values for each simulation run
+
+# Create dataframe for each value of X, the limits on y from the simulation
+pred.frame.a2 <-  expand.grid(x = x.a2,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.b2 <-  expand.grid(x = x.b2,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.c2 <-  expand.grid(x = x.c2,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.d2 <-  expand.grid(x = x.d2,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.e2 <-  expand.grid(x = x.e2,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.f2 <-  expand.grid(x = x.f2,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.g2 <-  expand.grid(x = x.g2,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.h2 <-  expand.grid(x = x.h2,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+# Soil model:
+# Calculate additional variance due to random effects & random noise: 
+summary(soil_mod)
+sqrt(0.1749 + 0.4980) # 0.8203048
+y.conf <- list() 
+
+for(z in 1:length(x.a2)){
+  y.conf[[z]] <- pars.resamp.a[,1] + pars.resamp.a[,3] * x.a2[z]  # fit the estimate based on the sampled intercept and slopes
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.a[t,1] + pars.resamp.a[t,3]*x.a2[z],  0.8203048)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.a2[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.a2[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.a2[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.a2[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.a2[z,6] <- coef_a[1] + coef_a[3] * x.a2[z]
+}
+
+# Salal model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(SAL_mod)
+sqrt(0.6701 + 1.8397) # 1.584235
+y.conf <- list() 
+
+for(z in 1:length(x.b2)){
+  y.conf[[z]] <- pars.resamp.b[,1] + pars.resamp.b[,3] * x.b2[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.b[t,1] + pars.resamp.b[t,3]*x.b2[z], 1.590503)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.b2[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.b2[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.b2[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.b2[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.b2[z,6] <- coef_b[1] + coef_b[3] * x.b2[z]
+}
+
+# False lily-of-the-Valley model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(FLV_mod)
+sqrt(0.9943 + 3.6739) # 2.160602
+y.conf <- list() 
+
+for(z in 1:length(x.c2)){
+  y.conf[[z]] <- pars.resamp.c[,1] + pars.resamp.c[,3] * x.c2[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.c[t,1] + pars.resamp.c[t,3]*x.c2[z], 2.160602)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.c2[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.c2[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.c2[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.c2[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.c2[z,6] <- coef_c[1] + coef_c[3] * x.c2[z]
+}
+
+
+# Herbivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(CUR_mod)
+sqrt(0.0803 + 0.3351) # 0.6445153
+y.conf <- list() 
+
+for(z in 1:length(x.d2)){
+  y.conf[[z]] <- pars.resamp.d[,1] + pars.resamp.d[,3] * x.d2[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.d[t,1] + pars.resamp.d[t,3]*x.d2[z],  0.6445153)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.d2[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.d2[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.d2[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.d2[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.d2[z,6] <- coef_d[1] + coef_d[3] * x.d2[z]
+}
+
+# Detritivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(ISO_mod)
+sqrt(0.4219 + 0.8122) # 1.110901
+y.conf <- list() 
+
+for(z in 1:length(x.e2)){
+  y.conf[[z]] <- pars.resamp.e[,1] + pars.resamp.e[,3] * x.e2[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.e[t,1] + pars.resamp.e[t,3]*x.e2[z], 1.110901)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.e2[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.e2[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.e2[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.e2[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.e2[z,6] <- coef_e[1] + coef_e[3] * x.e2[z]
+}
+
+# Carnivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(COL_mod)
+sqrt(0.4041 + 1.3696) # 1.331803
+y.conf <- list()  
+
+for(z in 1:length(x.f2)){
+  y.conf[[z]] <- pars.resamp.f[,1] + pars.resamp.f[,3] * x.f2[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.f[t,1] + pars.resamp.f[t,3]*x.f2[z],  1.331803)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.f2[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.f2[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.f2[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.f2[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.f2[z,6] <- coef_f[1] + coef_f[3] * x.f2[z]
+}
+
+# Songbird (feces) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feces_mod)
+sqrt(0.1252 + 3.1541) # 1.810884
+y.conf <- list() 
+
+for(z in 1:length(x.g2)){
+  y.conf[[z]] <- pars.resamp.g[,1] + pars.resamp.g[,3] * x.g2[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.g[t,1] + pars.resamp.g[t,3]*x.g2[z], 1.817113)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.g2[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.g2[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.g2[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.g2[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.g2[z,6] <- coef_g[1] + coef_g[3] * x.g2[z]
+}
+
+# Songbird (feather) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feather_mod)
+sqrt(5.473e-09 + 2.257e+00) #  1.502332
+y.conf <- list() 
+
+for(z in 1:length(x.h2)){
+  y.conf[[z]] <- pars.resamp.h[,1] + pars.resamp.h[,3] * x.h2[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.h[t,1] + pars.resamp.h[t,3]*x.h2[z], 1.502332)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.h2[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.h2[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.h2[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.h2[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.h2[z,6] <- coef_h[1] + coef_h[3] * x.h2[z]
+}
+```
+
+Plot: 
+```{r}
+pred.frame.a2 <- pred.frame.a2 %>% 
+  rename(ln.shoredist.std = x, d13c = m)
+write.csv(pred.frame.a2, "soil-preds-dist-d13c.csv", row.names = FALSE)
+
+pred.frame.b2 <- pred.frame.b2 %>% 
+  rename(ln.shoredist.std = x, d13c = m)
+write.csv(pred.frame.b2, "SAL-preds-dist-d13c.csv", row.names = FALSE)
+
+pred.frame.c2 <- pred.frame.c2 %>% 
+  rename(ln.shoredist.std = x, d13c = m)
+write.csv(pred.frame.c2, "FLV-preds-dist-d13c.csv", row.names = FALSE)
+
+pred.frame.d2 <- pred.frame.d2 %>% 
+  rename(ln.shoredist.std = x, d13c = m)
+write.csv(pred.frame.d2, "CUR-preds-dist-d13c.csv", row.names = FALSE)
+
+pred.frame.e2 <- pred.frame.e2 %>% 
+  rename(ln.shoredist.std = x, d13c = m)
+write.csv(pred.frame.e2, "ISO-preds-dist-d13c.csv", row.names = FALSE)
+
+pred.frame.f2 <- pred.frame.f2 %>% 
+  rename(ln.shoredist.std = x, d13c = m)
+write.csv(pred.frame.f2, "COL-preds-dist-d13c.csv", row.names = FALSE)
+
+pred.frame.g2 <- pred.frame.g2 %>% 
+  rename(ln.shoredist.std = x, d13c = m)
+write.csv(pred.frame.g2, "feces-preds-dist-d13c.csv", row.names = FALSE)
+
+pred.frame.h2 <- pred.frame.h2 %>% 
+  rename(ln.shoredist.std = x, d13c = m)
+write.csv(pred.frame.h2, "feather-preds-dist-d13c.csv", row.names = FALSE)
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+# Revert to un-logged, un-standardized distance to shore:
+pred.frame.a2$ln.shoredist <- pred.frame.a2$ln.shoredist.std * sd(soil_dat$ln.shoredist) + mean(soil_dat$ln.shoredist)
+pred.frame.a2$shoredist <- exp(pred.frame.a2$ln.shoredist)
+
+pred.frame.b2$ln.shoredist <- pred.frame.b2$ln.shoredist.std * sd(SAL_dat$ln.shoredist) + mean(SAL_dat$ln.shoredist)
+pred.frame.b2$shoredist <- exp(pred.frame.b2$ln.shoredist)
+
+pred.frame.c2$ln.shoredist <- pred.frame.c2$ln.shoredist.std * sd(FLV_dat$ln.shoredist) + mean(FLV_dat$ln.shoredist)
+pred.frame.c2$shoredist <- exp(pred.frame.c2$ln.shoredist)
+
+pred.frame.d2$ln.shoredist <- pred.frame.d2$ln.shoredist.std * sd(CUR_dat$ln.shoredist) + mean(CUR_dat$ln.shoredist)
+pred.frame.d2$shoredist <- exp(pred.frame.d2$ln.shoredist)
+
+pred.frame.e2$ln.shoredist <- pred.frame.e2$ln.shoredist.std * sd(ISO_dat$ln.shoredist) + mean(ISO_dat$ln.shoredist)
+pred.frame.e2$shoredist <- exp(pred.frame.e2$ln.shoredist)
+
+pred.frame.f2$ln.shoredist <- pred.frame.f2$ln.shoredist.std * sd(COL_dat$ln.shoredist) + mean(COL_dat$ln.shoredist)
+pred.frame.f2$shoredist <- exp(pred.frame.f2$ln.shoredist)
+
+pred.frame.g2$ln.shoredist <- pred.frame.g2$ln.shoredist.std * sd(feces_dat$ln.shoredist) + mean(feces_dat$ln.shoredist)
+pred.frame.g2$shoredist <- exp(pred.frame.g2$ln.shoredist)
+
+pred.frame.h2$ln.shoredist <- pred.frame.h2$ln.shoredist.std * sd(feather_dat$ln.shoredist) + mean(feather_dat$ln.shoredist)
+pred.frame.h2$shoredist <- exp(pred.frame.h2$ln.shoredist)
+
+# Feces, with PI: 
+dist_d13c_plot <- ggplot(NULL, aes(y = d13c, x = shoredist)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) +
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) +
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) +
+  geom_point(data = feces_dat, alpha = 0.1, colour = color_pal[1], size = 2) +
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) +
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) +
+  geom_line(data = pred.frame.a2, aes(y = d13c), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_ribbon(data = pred.frame.a2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[7]) +
+  geom_line(data = pred.frame.b2, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c2, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[5]) +
+   geom_line(data = pred.frame.f2, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.g2, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[1]) +
+   geom_line(data = pred.frame.d2, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d2, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e2, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e2, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[3]) +
+  xlab("Distance to shore (m)") +
+  ylab(expression(paste("\n"," ", delta^{13}, "C")));dist_d15n_plot
+
+tiff("figures/dist-d13c-bootstrapped-w-PI.tiff", units = "px", res = 300, width = 1600, height = 1400)
+dist_d13c_plot
+dev.off()
+
+# Feces, with CI: 
+dist_d13c_plot2 <- ggplot(NULL, aes(y = d13c, x = shoredist)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) +
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) +
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) +
+  geom_point(data = feces_dat, alpha = 0.1, colour = color_pal[1], size = 2) +
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) +
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) +
+  geom_line(data = pred.frame.a2, aes(y = d13c), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_line(data = pred.frame.b2, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c2, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+  geom_line(data = pred.frame.f2, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.g2, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) +
+  geom_line(data = pred.frame.d2, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d2, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e2, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e2, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) +
+  xlab("Distance to shore (m)") +
+  ylab(expression(paste("\n"," ", delta^{13}, "C")));dist_d13c_plot
+
+tiff("figures/dist-d13c-bootstrapped-w-CI.tiff", units = "px", res = 300, width = 1600, height = 1400)
+dist_d13c_plot2
+dev.off()
+
+# Feathers, with PI: 
+dist_d13c_plot3 <- ggplot(NULL, aes(y = d13c, x = shoredist)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) +
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) +
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) +
+  geom_point(data = feather_dat, alpha = 0.1, colour = color_pal[1], size = 2) +
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) +
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) +
+  geom_line(data = pred.frame.a2, aes(y = d13c), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_ribbon(data = pred.frame.a2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[7]) +
+  geom_line(data = pred.frame.b2, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c2, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[5]) +
+   geom_line(data = pred.frame.f2, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.h2, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.h2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) +
+  geom_ribbon(data = pred.frame.h2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[1]) +
+   geom_line(data = pred.frame.d2, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d2, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e2, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e2, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e2, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[3]) +
+  xlab("Distance to shore (m)") +
+  ylab(expression(paste("\n"," ", delta^{13}, "C")));dist_d13c_plot
+
+tiff("figures/dist-d13c-bootstrapped-w-PI-feather.tiff", units = "px", res = 300, width = 1600, height = 1400)
+dist_d13c_plot3
+dev.off()
+
+# Feathers, with CI: 
+dist_d15n_plot4 <- ggplot(NULL, aes(y = d13c, x = shoredist)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) +
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) +
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) +
+  geom_point(data = feather_dat, alpha = 0.1, colour = color_pal[1], size = 2) +
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) +
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) +
+  geom_line(data = pred.frame.a2, aes(y = d13c), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_line(data = pred.frame.b2, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c2, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+  geom_line(data = pred.frame.f2, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.h2, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.h2, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) +
+  geom_line(data = pred.frame.d2, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d2, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e2, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e2, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) +
+  xlab("Distance to shore (m)") +
+  ylab(expression(paste("\n"," ", delta^{15}, "N")));dist_d15n_plot
+
+tiff("figures/dist-d13c-bootstrapped-w-CI.tiff", units = "px", res = 300, width = 1600, height = 1400)
+dist_d13c_plot2
+dev.off()
+
+
+```
+
+#### Wrack:
+Bootstrapped CIs and PIs: 
+```{r}
+# Simulate the uncertainty in parameter estimates and generate 95% credible intervals
+coef_a <- c(soil_mod$fit$par[1:6]) # Extract the point estimates for coefficients from your model (eg. intercept and slope)
+coef_b <- c(SAL_mod$fit$par[1:6])
+coef_c <- c(FLV_mod$fit$par[1:6])
+coef_d <- c(CUR_mod$fit$par[1:6])
+coef_e <- c(ISO_mod$fit$par[1:6])
+coef_f <- c(COL_mod$fit$par[1:6])
+coef_g <- c(feces_mod$fit$par[1:6])
+coef_h <- c(feather_mod$fit$par[1:6])
+
+vcov_a <- vcov(soil_mod)[[1]] # Variance-covariance matrix of the parameter estimates
+vcov_b <- vcov(SAL_mod)[[1]]
+vcov_c <- vcov(FLV_mod)[[1]]
+vcov_d <- vcov(CUR_mod)[[1]]
+vcov_e <- vcov(ISO_mod)[[1]]
+vcov_f <- vcov(COL_mod)[[1]]
+vcov_g <- vcov(feces_mod)[[1]]
+vcov_h <- vcov(feather_mod)[[1]]
+
+pars.resamp.a <- mvrnorm(500, mu = coef_a, Sigma = vcov_a) # Multivariate normal simulation of errors - gives the mean and the VCV matrix
+pars.resamp.b <- mvrnorm(500, mu = coef_b, Sigma = vcov_b)
+pars.resamp.c <- mvrnorm(500, mu = coef_c, Sigma = vcov_c)
+pars.resamp.d <- mvrnorm(500, mu = coef_d, Sigma = vcov_d)
+pars.resamp.e <- mvrnorm(500, mu = coef_e, Sigma = vcov_e)
+pars.resamp.f <- mvrnorm(500, mu = coef_f, Sigma = vcov_f)
+pars.resamp.g <- mvrnorm(500, mu = coef_g, Sigma = vcov_g)
+pars.resamp.h <- mvrnorm(500, mu = coef_h, Sigma = vcov_h)
+
+x.a3 <- seq(min(soil_dat$sqrt.wrack.std), max(soil_dat$sqrt.wrack.std), length.out = 1000) # dummy variable for your predictor 
+x.b3 <- seq(min(SAL_dat$sqrt.wrack.std), max(SAL_dat$sqrt.wrack.std), length.out = 1000)
+x.c3 <- seq(min(FLV_dat$sqrt.wrack.std), max(FLV_dat$sqrt.wrack.std), length.out = 1000)
+x.d3 <- seq(min(CUR_dat$sqrt.wrack.std), max(CUR_dat$sqrt.wrack.std), length.out = 1000)
+x.e3 <- seq(min(ISO_dat$sqrt.wrack.std), max(ISO_dat$sqrt.wrack.std), length.out = 1000)
+x.f3 <- seq(min(COL_dat$sqrt.wrack.std), max(COL_dat$sqrt.wrack.std), length.out = 1000)
+x.g3 <- seq(min(feces_dat$sqrt.wrack.std), max(feces_dat$sqrt.wrack.std), length.out = 1000)
+x.h3 <- seq(min(feather_dat$sqrt.wrack.std), max(feather_dat$sqrt.wrack.std), length.out = 1000)
+
+y.conf <- list() #Create an empty list for the estimate y values for each simulation run
+
+# Create dataframe for each value of X, the limits on y from the simulation
+pred.frame.a3 <-  expand.grid(x = x.a3,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.b3 <-  expand.grid(x = x.b3,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.c3 <-  expand.grid(x = x.c3,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.d3 <-  expand.grid(x = x.d3,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.e3 <-  expand.grid(x = x.e3,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.f3 <-  expand.grid(x = x.f3,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.g3 <-  expand.grid(x = x.g3,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.h3 <-  expand.grid(x = x.h3,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+# Soil model:
+# Calculate additional variance due to random effects & random noise: 
+summary(soil_mod)
+sqrt(0.1749 + 0.4980) # 0.8203048
+y.conf <- list() 
+
+for(z in 1:length(x.a3)){
+  y.conf[[z]] <- pars.resamp.a[,1] + pars.resamp.a[,5] * x.a3[z]  # fit the estimate based on the sampled intercept and slopes
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.a[t,1] + pars.resamp.a[t,5]*x.a3[z],  0.8203048)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors = FALSE))
+  pred.frame.a3[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.a3[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.a3[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.a3[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.a3[z,6] <- coef_a[1] + coef_a[5] * x.a3[z]
+}
+
+# Salal model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(SAL_mod)
+sqrt(0.6701 + 1.8397) # 1.584235
+y.conf <- list() 
+
+for(z in 1:length(x.b3)){
+  y.conf[[z]] <- pars.resamp.b[,1] + pars.resamp.b[,5] * x.b3[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.b[t,1] + pars.resamp.b[t,5]*x.b3[z], 1.584235)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.b3[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.b3[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.b3[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.b3[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.b3[z,6] <- coef_b[1] + coef_b[5] * x.b3[z]
+}
+
+# False lily-of-the-Valley model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(FLV_mod)
+sqrt(0.6701 + 1.8397) # 1.584235
+y.conf <- list() 
+
+for(z in 1:length(x.c3)){
+  y.conf[[z]] <- pars.resamp.c[,1] + pars.resamp.c[,5] * x.c3[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.c[t,1] + pars.resamp.c[t,5]*x.c3[z], 1.584235)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.c3[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.c3[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.c3[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.c3[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.c3[z,6] <- coef_c[1] + coef_c[5] * x.c3[z]
+}
+
+
+# Herbivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(CUR_mod)
+sqrt(0.0803 + 0.3351) # 0.6445153
+y.conf <- list() 
+
+for(z in 1:length(x.d3)){
+  y.conf[[z]] <- pars.resamp.d[,1] + pars.resamp.d[,5] * x.d3[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.d[t,1] + pars.resamp.d[t,5]*x.d3[z],  0.6445153)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.d3[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.d3[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.d3[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.d3[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.d3[z,6] <- coef_d[1] + coef_d[5] * x.d3[z]
+}
+
+# Detritivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(ISO_mod)
+sqrt(0.4129 + 0.8122) # 1.106842
+y.conf <- list() 
+
+for(z in 1:length(x.e3)){
+  y.conf[[z]] <- pars.resamp.e[,1] + pars.resamp.e[,5] * x.e3[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.e[t,1] + pars.resamp.e[t,5]*x.e3[z], 1.106842)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.e3[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.e3[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.e3[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.e3[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.e3[z,6] <- coef_e[1] + coef_e[5] * x.e3[z]
+}
+
+# Carnivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(COL_mod)
+sqrt(0.4041 + 1.3696) # 1.331803
+y.conf <- list()  
+
+for(z in 1:length(x.f3)){
+  y.conf[[z]] <- pars.resamp.f[,1] + pars.resamp.f[,5] * x.f3[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.f[t,1] + pars.resamp.f[t,5]*x.f3[z],  1.331803)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.f3[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.f3[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.f3[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.f3[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.f3[z,6] <- coef_f[1] + coef_f[5] * x.f3[z]
+}
+
+# Songbird (feces) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feces_mod)
+sqrt(0.1252 + 3.1541) # 1.810884
+y.conf <- list() 
+
+for(z in 1:length(x.g3)){
+  y.conf[[z]] <- pars.resamp.g[,1] + pars.resamp.g[,5] * x.g3[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.g[t,1] + pars.resamp.g[t,5]*x.g3[z], 1.810884)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.g3[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.g3[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.g3[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.g3[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.g3[z,6] <- coef_g[1] + coef_g[5] * x.g3[z]
+}
+
+# Songbird (feather) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feather_mod)
+sqrt(6.966e-09 + 2.257e+00) #  1.502332
+y.conf <- list() 
+
+for(z in 1:length(x.h3)){
+  y.conf[[z]] <- pars.resamp.h[,1] + pars.resamp.h[,5] * x.h3[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.h[t,1] + pars.resamp.h[t,5]*x.h3[z], 1.502332)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.h3[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.h3[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.h3[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.h3[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.h3[z,6] <- coef_h[1] + coef_h[5] * x.h3[z]
+}
+```
+
+Plot: 
+```{r}
+pred.frame.a3 <- pred.frame.a3 %>% 
+  rename(sqrt.wrack.std = x, d13c = m)
+write.csv(pred.frame.a3, "soil-preds-wrack-d13c.csv", row.names = FALSE)
+pred.frame.a3 <- read.csv("soil-preds-wrack-d13c.csv")
+
+pred.frame.b3 <- pred.frame.b3 %>% 
+  rename(sqrt.wrack.std = x, d13c = m)
+write.csv(pred.frame.b3, "SAL-preds-wrack-d13c.csv", row.names = FALSE)
+pred.frame.b3 <- read.csv("SAL-preds-wrack-d13c.csv")
+
+pred.frame.c3 <- pred.frame.c3 %>% 
+  rename(sqrt.wrack.std = x, d13c = m)
+write.csv(pred.frame.c3, "FLV-preds-wrack-d13c.csv", row.names = FALSE)
+pred.frame.c3 <- read.csv("FLV-preds-wrack-d13c.csv")
+
+pred.frame.d3 <- pred.frame.d3 %>% 
+  rename(sqrt.wrack.std = x, d13c = m)
+write.csv(pred.frame.d3, "CUR-preds-wrack-d13c.csv", row.names = FALSE)
+pred.frame.d3 <- read.csv("CUR-preds-wrack-d13c.csv")
+
+pred.frame.e3 <- pred.frame.e3 %>% 
+  rename(sqrt.wrack.std = x, d13c = m)
+write.csv(pred.frame.e3, "ISO-preds-wrack-d13c.csv", row.names = FALSE)
+pred.frame.e3 <- read.csv("ISO-preds-wrack-d13c.csv")
+
+pred.frame.f3 <- pred.frame.f3 %>% 
+  rename(sqrt.wrack.std = x, d13c = m)
+write.csv(pred.frame.f3, "COL-preds-wrack-d13c.csv", row.names = FALSE)
+pred.frame.f3 <- read.csv("COL-preds-wrack-d13c.csv")
+
+pred.frame.g3 <- pred.frame.g3 %>% 
+  rename(sqrt.wrack.std = x, d13c = m)
+write.csv(pred.frame.g3, "feces-preds-wrack-d13c.csv", row.names = FALSE)
+pred.frame.g3 <- read.csv("feces-preds-wrack-d13c.csv")
+
+pred.frame.h3 <- pred.frame.h3 %>% 
+  rename(sqrt.wrack.std = x, d13c = m)
+write.csv(pred.frame.h3, "feather-preds-wrack-d13c.csv", row.names = FALSE)
+pred.frame.h3 <- read.csv("feather-preds-wrack-d13c.csv")
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+# Revert to unstandardized sqrt wrack biomass:
+pred.frame.a3$sqrt.wrack <- pred.frame.a3$sqrt.wrack.std * sd(soil_dat$sqrt.wrack) + mean(soil_dat$sqrt.wrack)
+
+pred.frame.b3$sqrt.wrack <- pred.frame.b3$sqrt.wrack.std * sd(SAL_dat$sqrt.wrack) + mean(SAL_dat$sqrt.wrack)
+
+pred.frame.c3$sqrt.wrack <- pred.frame.c3$sqrt.wrack.std * sd(FLV_dat$sqrt.wrack) + mean(FLV_dat$sqrt.wrack)
+
+pred.frame.d3$sqrt.wrack <- pred.frame.d3$sqrt.wrack.std * sd(CUR_dat$sqrt.wrack) + mean(CUR_dat$sqrt.wrack)
+
+pred.frame.e3$sqrt.wrack <- pred.frame.e3$sqrt.wrack.std * sd(ISO_dat$sqrt.wrack) + mean(ISO_dat$sqrt.wrack)
+
+pred.frame.f3$sqrt.wrack <- pred.frame.f3$sqrt.wrack.std * sd(COL_dat$sqrt.wrack) + mean(COL_dat$sqrt.wrack)
+
+pred.frame.g3$sqrt.wrack <- pred.frame.g3$sqrt.wrack.std * sd(feces_dat$sqrt.wrack) + mean(feces_dat$sqrt.wrack)
+
+pred.frame.h3$sqrt.wrack <- pred.frame.h3$sqrt.wrack.std * sd(feather_dat$sqrt.wrack) + mean(feather_dat$sqrt.wrack)
+
+# Feces: 
+wrack_d13c_plot <- ggplot(NULL, aes(y = d13c, x = sqrt.wrack)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) +
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) +
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) +
+  geom_point(data = feces_dat, alpha = 0.1, colour = color_pal[1], size = 2) +
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) +
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) +
+  geom_line(data = pred.frame.a3, aes(y = d13c), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a3, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_line(data = pred.frame.b3, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b3, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c3, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c3, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+   geom_line(data = pred.frame.f3, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f3, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.g3, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g3, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) +
+   geom_line(data = pred.frame.d3, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d3, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e3, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e3, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) +
+  xlab(expression(sqrt(Wrack~biomass~(kg/m^{"2"})))) +
+  ylab(expression(paste("\n"," ", delta^{13}, "C")));wrack_d13c_plot
+
+tiff("figures/wrack-d13c-bootstrapped.tiff", units = "px", res = 300, width = 1600, height = 1400)
+wrack_d13c_plot
+dev.off()
+```
+#### Slope: 
+Bootstrapped CIs and PIs: 
+```{r}
+# Simulate the uncertainty in parameter estimates and generate 95% credible intervals
+coef_a <- c(soil_mod$fit$par[1:6]) # Extract the point estimates for coefficients from your model (eg. intercept and slope)
+coef_b <- c(SAL_mod$fit$par[1:6])
+coef_c <- c(FLV_mod$fit$par[1:6])
+coef_d <- c(CUR_mod$fit$par[1:6])
+coef_e <- c(ISO_mod$fit$par[1:6])
+coef_f <- c(COL_mod$fit$par[1:6])
+coef_g <- c(feces_mod$fit$par[1:6])
+coef_h <- c(feather_mod$fit$par[1:6])
+
+vcov_a <- vcov(soil_mod)[[1]] # Variance-covariance matrix of the parameter estimates
+vcov_b <- vcov(SAL_mod)[[1]]
+vcov_c <- vcov(FLV_mod)[[1]]
+vcov_d <- vcov(CUR_mod)[[1]]
+vcov_e <- vcov(ISO_mod)[[1]]
+vcov_f <- vcov(COL_mod)[[1]]
+vcov_g <- vcov(feces_mod)[[1]]
+vcov_h <- vcov(feather_mod)[[1]]
+
+pars.resamp.a <- mvrnorm(500, mu = coef_a, Sigma = vcov_a) # Multivariate normal simulation of errors - gives the mean and the VCV matrix
+pars.resamp.b <- mvrnorm(500, mu = coef_b, Sigma = vcov_b)
+pars.resamp.c <- mvrnorm(500, mu = coef_c, Sigma = vcov_c)
+pars.resamp.d <- mvrnorm(500, mu = coef_d, Sigma = vcov_d)
+pars.resamp.e <- mvrnorm(500, mu = coef_e, Sigma = vcov_e)
+pars.resamp.f <- mvrnorm(500, mu = coef_f, Sigma = vcov_f)
+pars.resamp.g <- mvrnorm(500, mu = coef_g, Sigma = vcov_g)
+pars.resamp.h <- mvrnorm(500, mu = coef_h, Sigma = vcov_h)
+
+x.a4 <- seq(min(soil_dat$slope.std), max(soil_dat$slope.std), length.out = 1000) # dummy variable for your predictor 
+x.b4 <- seq(min(SAL_dat$slope.std), max(SAL_dat$slope.std), length.out = 1000)
+x.c4 <- seq(min(FLV_dat$slope.std), max(FLV_dat$slope.std), length.out = 1000)
+x.d4 <- seq(min(CUR_dat$slope.std), max(CUR_dat$slope.std), length.out = 1000)
+x.e4 <- seq(min(ISO_dat$slope.std), max(ISO_dat$slope.std), length.out = 1000)
+x.f4 <- seq(min(COL_dat$slope.std), max(COL_dat$slope.std), length.out = 1000)
+x.g4 <- seq(min(feces_dat$slope.std), max(feces_dat$slope.std), length.out = 1000)
+x.h4 <- seq(min(feather_dat$slope.std), max(feather_dat$slope.std), length.out = 1000)
+
+y.conf <- list() #Create an empty list for the estimate y values for each simulation run
+
+# Create dataframe for each value of X, the limits on y from the simulation
+pred.frame.a4 <-  expand.grid(x = x.a4,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.b4 <-  expand.grid(x = x.b4,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.c4 <-  expand.grid(x = x.c4,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.d4 <-  expand.grid(x = x.d4,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.e4 <-  expand.grid(x = x.e4,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.f4 <-  expand.grid(x = x.f4,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.g4 <-  expand.grid(x = x.g4,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+pred.frame.h4 <-  expand.grid(x = x.h4,
+                              l.ci = NA, 
+                              u.ci = NA,
+                              l.pi = NA,
+                              u.pi = NA,
+                              m = NA) 
+
+# Soil model:
+# Calculate additional variance due to random effects & random noise: 
+summary(soil_mod)
+sqrt(0.1749 + 0.4980) # 0.8203048
+y.conf <- list() 
+
+for(z in 1:length(x.a4)){
+  y.conf[[z]] <- pars.resamp.a[,1] + pars.resamp.a[,4] * x.a4[z]  # fit the estimate based on the sampled intercept and slopes
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.a[t,1] + pars.resamp.a[t,4]*x.a4[z],  0.8203048)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors = FALSE))
+  pred.frame.a4[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.a4[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.a4[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.a4[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.a4[z,6] <- coef_a[1] + coef_a[4] * x.a4[z]
+}
+
+# Salal model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(SAL_mod)
+sqrt(0.6701 + 1.8397) # 1.584235
+y.conf <- list() 
+
+for(z in 1:length(x.b4)){
+  y.conf[[z]] <- pars.resamp.b[,1] + pars.resamp.b[,4] * x.b4[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.b[t,1] + pars.resamp.b[t,4]*x.b4[z], 1.584235)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.b4[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.b4[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.b4[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.b4[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.b4[z,6] <- coef_b[1] + coef_b[4] * x.b4[z]
+}
+
+# False lily-of-the-Valley model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(FLV_mod)
+sqrt(0.6701 + 1.8397) # 1.584235
+y.conf <- list() 
+
+for(z in 1:length(x.c4)){
+  y.conf[[z]] <- pars.resamp.c[,1] + pars.resamp.c[,4] * x.c4[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.c[t,1] + pars.resamp.c[t,4]*x.c4[z], 1.584235)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.c4[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.c4[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.c4[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.c4[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.c4[z,6] <- coef_c[1] + coef_c[4] * x.c4[z]
+}
+
+
+# Herbivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(CUR_mod)
+sqrt(0.0803 + 0.3351) # 0.6445153
+y.conf <- list() 
+
+for(z in 1:length(x.d4)){
+  y.conf[[z]] <- pars.resamp.d[,1] + pars.resamp.d[,4] * x.d4[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.d[t,1] + pars.resamp.d[t,4]*x.d4[z],  0.6445153)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.d4[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.d4[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.d4[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.d4[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.d4[z,6] <- coef_d[1] + coef_d[4] * x.d4[z]
+}
+
+# Detritivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(ISO_mod)
+sqrt(0.4129 + 0.8122) # 1.106842
+y.conf <- list() 
+
+for(z in 1:length(x.e4)){
+  y.conf[[z]] <- pars.resamp.e[,1] + pars.resamp.e[,4] * x.e4[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.e[t,1] + pars.resamp.e[t,4]*x.e4[z], 1.106842)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.e4[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.e4[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.e4[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.e4[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.e4[z,6] <- coef_e[1] + coef_e[4] * x.e4[z]
+}
+
+# Carnivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(COL_mod)
+sqrt(0.4041 + 1.3696) # 1.331803
+y.conf <- list()  
+
+for(z in 1:length(x.f4)){
+  y.conf[[z]] <- pars.resamp.f[,1] + pars.resamp.f[,4] * x.f4[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.f[t,1] + pars.resamp.f[t,4]*x.f4[z],  1.331803)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.f4[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.f4[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.f4[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.f4[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.f4[z,6] <- coef_f[1] + coef_f[4] * x.f4[z]
+}
+
+# Songbird (feces) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feces_mod)
+sqrt(0.1252 + 3.1541) # 1.810884
+y.conf <- list() 
+
+for(z in 1:length(x.g4)){
+  y.conf[[z]] <- pars.resamp.g[,1] + pars.resamp.g[,4] * x.g4[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.g[t,1] + pars.resamp.g[t,4]*x.g4[z], 1.810884)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.g4[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.g4[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.g4[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.g4[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.g4[z,6] <- coef_g[1] + coef_g[4] * x.g4[z]
+}
+
+# Songbird (feather) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feather_mod)
+sqrt(6.966e-09 + 2.257e+00) #  1.502332
+y.conf <- list() 
+
+for(z in 1:length(x.h4)){
+  y.conf[[z]] <- pars.resamp.h[,1] + pars.resamp.h[,4] * x.h4[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.h[t,1] + pars.resamp.h[t,4]*x.h4[z], 1.502332)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.h4[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.h4[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.h4[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.h4[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.h4[z,6] <- coef_h[1] + coef_h[4] * x.h4[z]
+}
+```
+
+Plot: 
+```{r}
+pred.frame.a4 <- pred.frame.a4 %>% 
+  rename(slope.std = x, d13c = m)
+write.csv(pred.frame.a4, "soil-preds-slope-d13c.csv", row.names = FALSE)
+pred.frame.a4 <- read.csv("soil-preds-slope-d13c.csv")
+
+pred.frame.b4 <- pred.frame.b4 %>% 
+  rename(slope.std = x, d13c = m)
+write.csv(pred.frame.b4, "SAL-preds-slope-d13c.csv", row.names = FALSE)
+pred.frame.b4 <- read.csv("SAL-preds-slope-d13c.csv")
+
+pred.frame.c4 <- pred.frame.c4 %>% 
+  rename(slope.std = x, d13c = m)
+write.csv(pred.frame.c4, "FLV-preds-slope-d13c.csv", row.names = FALSE)
+pred.frame.c4 <- read.csv("FLV-preds-slope-d13c.csv")
+
+pred.frame.d4 <- pred.frame.d4 %>% 
+  rename(slope.std = x, d13c = m)
+write.csv(pred.frame.d4, "CUR-preds-slope-d13c.csv", row.names = FALSE)
+pred.frame.d4 <- read.csv("CUR-preds-slope-d13c.csv")
+
+pred.frame.e4 <- pred.frame.e4 %>% 
+  rename(slope.std = x, d13c = m)
+write.csv(pred.frame.e4, "ISO-preds-slope-d13c.csv", row.names = FALSE)
+pred.frame.e4 <- read.csv("ISO-preds-slope-d13c.csv")
+
+pred.frame.f4 <- pred.frame.f4 %>% 
+  rename(slope.std = x, d13c = m)
+write.csv(pred.frame.f4, "COL-preds-slope-d13c.csv", row.names = FALSE)
+pred.frame.f4 <- read.csv("COL-preds-slope-d13c.csv")
+
+pred.frame.g4 <- pred.frame.g4 %>% 
+  rename(slope.std = x, d13c = m)
+write.csv(pred.frame.g4, "feces-preds-slope-d13c.csv", row.names = FALSE)
+pred.frame.g4 <- read.csv("feces-preds-slope-d13c.csv")
+
+pred.frame.h4 <- pred.frame.h4 %>% 
+  rename(slope.std = x, d13c = m)
+write.csv(pred.frame.h4, "feather-preds-slope-d13c.csv", row.names = FALSE)
+pred.frame.h4 <- read.csv("feather-preds-slope-d13c.csv")
+
+# Revert to un-logged, un-standardized distance to shore:
+pred.frame.a4$slope_mean <- pred.frame.a4$slope.std * sd(soil_dat$slope_mean) + mean(soil_dat$slope_mean)
+
+pred.frame.b4$slope_mean <- pred.frame.b4$slope.std * sd(SAL_dat$slope_mean) + mean(SAL_dat$slope_mean)
+
+pred.frame.c4$slope_mean <- pred.frame.c4$slope.std * sd(FLV_dat$slope_mean) + mean(FLV_dat$slope_mean)
+
+pred.frame.d4$slope_mean <- pred.frame.d4$slope.std * sd(CUR_dat$slope_mean) + mean(CUR_dat$slope_mean)
+
+pred.frame.e4$slope_mean <- pred.frame.e4$slope.std * sd(ISO_dat$slope_mean) + mean(ISO_dat$slope_mean)
+
+pred.frame.f4$slope_mean <- pred.frame.f4$slope.std * sd(COL_dat$slope_mean) + mean(COL_dat$slope_mean)
+
+pred.frame.g4$slope_mean <- pred.frame.g4$slope.std * sd(feces_dat$slope_mean) + mean(feces_dat$slope_mean)
+
+pred.frame.h4$slope_mean <- pred.frame.h4$slope.std * sd(feather_dat$slope_mean) + mean(feather_dat$slope_mean)
+
+# Feces:
+slope_d13c_plot <- ggplot(NULL, aes(y = d13c, x = slope_mean)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) +
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) +
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) +
+  geom_point(data = feces_dat, alpha = 0.1, colour = color_pal[1], size = 2) +
+  geom_point(data = CUR_dat, alpha = 0.1, colour = color_pal[4], size = 2) +
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) +
+  geom_line(data = pred.frame.a4, aes(y = d13c), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a4, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_line(data = pred.frame.b4, aes(y = d13c), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b4, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c4, aes(y = d13c), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c4, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+  geom_line(data = pred.frame.f4, aes(y = d13c), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f4, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.g4, aes(y = d13c), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g4, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) +
+  geom_line(data = pred.frame.d4, aes(y = d13c), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d4, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e4, aes(y = d13c), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e4, aes(ymin = l.ci, ymax = u.ci), alpha = .5, linetype = 0, fill = color_pal[3]) +
+  xlab("Mean island slope") +
+  ylab(expression(paste("\n"," ", delta^{13}, "C")));slope_d13c_plot
+
+tiff("figures/slope-d13c-bootstrapped.tiff", units = "px", res = 300, width = 1600, height = 1400)
+slope_d13c_plot
+dev.off()
+```
+# d15n ~ d13c biplots: 
+By island size (SD instead of 95% CI):  
+```{r}
+df <- df %>% 
+  dplyr::filter(!taxon == "feather")
+
+df$taxon <- factor(df$taxon, 
+                   levels = c("feces", "COL", "ISO", "CUR", "FLV", "SAL", "soil"),  
+                   labels = c("songbirds", "carnivores (beetles)", "detritivores (isopods)", "herbivores (weevils)", "false lily-of-the-valley", "salal", "soil")) 
+
+small <- df %>% 
+  dplyr::filter(l.area < quantile(l.area, probs = seq(0, 1, 0.33))[2]) %>% 
+  dplyr::mutate(size = "small") %>% 
+  dplyr::select(island, size) %>% 
+  distinct()
+
+medium <- df %>% 
+  dplyr::filter(between(l.area, quantile(l.area, probs = seq(0, 1, 0.33))[2], quantile(l.area, probs = seq(0, 1, 0.33))[3])) %>% 
+  dplyr::mutate(size = "medium") %>%
+  dplyr::select(island, size) %>% 
+  distinct()
+
+large <- df %>% 
+  dplyr::filter(between(l.area, quantile(l.area, probs = seq(0, 1, 0.33))[3], quantile(l.area, probs = seq(0, 1, 0.33))[4])) %>% 
+  dplyr::mutate(size = "large") %>% 
+  dplyr::select(island, size) %>% 
+  distinct()
+
+sizes <- rbind(small, medium, large)
+
+df <- merge(df, sizes, by = "island")
+
+small <- df %>% 
+  dplyr::filter(size == "small")
+
+medium <- df %>% 
+  dplyr::filter(size == "medium")
+
+large <- df %>% 
+  dplyr::filter(size == "large")
+
+df.biplot <- df %>% 
+  dplyr::group_by(taxon, size) %>% 
+  dplyr::summarise(mean.d13c = mean(d13c), 
+                   sd.d13c = sd(d13c), 
+                   mean.d15n = mean(d15n), 
+                   sd.d15n = sd(d15n))
+
+df.small <- small %>% 
+  dplyr::group_by(taxon) %>% 
+  dplyr::summarise(mean.d13c = mean(d13c), 
+                   sd.d13c = sd(d13c), 
+                   mean.d15n = mean(d15n), 
+                   sd.d15n = sd(d15n))
+
+df.medium <- medium %>% 
+  dplyr::group_by(taxon) %>% 
+  dplyr::summarise(mean.d13c = mean(d13c), 
+                   sd.d13c = sd(d13c), 
+                   mean.d15n = mean(d15n), 
+                   sd.d15n = sd(d15n))
+
+df.large <- large %>% 
+  dplyr::group_by(taxon) %>% 
+  dplyr::summarise(mean.d13c = mean(d13c), 
+                   sd.d13c = sd(d13c), 
+                   mean.d15n = mean(d15n), 
+                   sd.d15n = sd(d15n))
+
+small_plot <- ggplot(small, aes(x = d13c, y = d15n, color = taxon)) + 
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        legend.title = element_blank(), 
+        axis.text = element_text(size = 8), 
+        axis.title = element_text(size = 12),
+        axis.ticks.length = unit(0.1, "cm"),
+        aspect.ratio = 1,
+        plot.title = element_text(size = 12),
+        legend.position = "none") +
+  geom_point(size = 1, alpha = 0.05) + 
+  geom_point(data = df.small, aes(x = mean.d13c, y = mean.d15n, group = taxon), 
+             color = color_pal,  
+             size = 2) +
+  geom_errorbar(data = df.small, 
+                mapping = aes(x = mean.d13c,
+                              ymin = mean.d15n - sd.d15n, 
+                              ymax = mean.d15n + sd.d15n), 
+                width = 0,
+                lwd = 1,
+                color = color_pal,
+                inherit.aes = FALSE) +
+  geom_errorbarh(data = df.small, 
+                 mapping = aes(y = mean.d15n,
+                               xmin = mean.d13c - sd.d13c,
+                               xmax = mean.d13c + sd.d13c),
+                 height = 0, 
+                 lwd = 1,
+                 colour = color_pal,
+                 inherit.aes = FALSE) +
+  ylab(expression(paste(delta^{15}, "N \u00B1 SE")))+
+  xlab(expression(paste(delta^{13}, "C \u00B1 SE"))) + 
+  xlim(c(-36, -20)) + 
+  ylim(c(-15, 20)) +
+  scale_colour_manual(values = color_pal) +
+  guides(color = guide_legend(override.aes = list(alpha = 1, size = 2), reverse = TRUE)) +
+  ggtitle("Small");small_plot
+
+medium_plot <- ggplot(medium, aes(x = d13c, y = d15n, color = taxon)) + 
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        legend.title = element_blank(), 
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_blank(), 
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_blank(),
+        axis.ticks.length = unit(0.1, "cm"),
+        aspect.ratio = 1,
+        plot.title = element_text(size = 12),
+        legend.position = "none") +
+  geom_point(size = 1, alpha = 0.05) + 
+  geom_point(data = df.medium, aes(x = mean.d13c, y = mean.d15n, group = taxon), 
+             color = color_pal,  
+             size = 2) +
+  geom_errorbar(data = df.medium, 
+                mapping = aes(x = mean.d13c,
+                              ymin = mean.d15n - sd.d15n, 
+                              ymax = mean.d15n + sd.d15n), 
+                width = 0,
+                lwd = 1,
+                color = color_pal,
+                inherit.aes = FALSE) +
+  geom_errorbarh(data = df.medium, 
+                 mapping = aes(y = mean.d15n,
+                               xmin = mean.d13c - sd.d13c,
+                               xmax = mean.d13c + sd.d13c),
+                 height = 0, 
+                 lwd = 1,
+                 colour = color_pal,
+                 inherit.aes = FALSE) +
+  ylab(expression(paste(delta^{15}, "N \u00B1 SE")))+
+  xlab(expression(paste(delta^{13}, "C \u00B1 SE"))) + 
+  xlim(c(-36, -20)) + 
+  ylim(c(-15, 20)) +
+  scale_colour_manual(values = color_pal) +
+  guides(color = guide_legend(override.aes = list(alpha = 1, size = 2), reverse = TRUE)) +
+  ggtitle("Medium")
+
+# function to modify vertical spacing between legend keys
+# @clauswilke
+draw_key_polygon3 <- function(data, params, size) {
+  lwd <- min(data$size, min(size) / 4)
+  
+  grid::rectGrob(
+    width = grid::unit(0.6, "npc"),
+    height = grid::unit(0.6, "npc"),
+    gp = grid::gpar(
+      col = data$colour,
+      fill = alpha(data$fill, data$alpha),
+      lty = data$linetype,
+      lwd = lwd * .pt,
+      linejoin = "mitre"
+    ))
+}
+
+# register new key drawing function, 
+# the effect is global & persistent throughout the R session
+GeomBar$draw_key = draw_key_polygon3
+
+large_plot <- ggplot(large, aes(x = d13c, y = d15n, color = taxon)) + 
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        legend.title = element_blank(), 
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_blank(), 
+        axis.title.x = element_text(size = 12),
+        axis.title.y = element_blank(),
+        axis.ticks.length = unit(0.1, "cm"),
+        aspect.ratio = 1,
+        plot.title = element_text(size = 12),
+        legend.key.size = unit(0.3, "cm")) +
+  geom_point(size = 1, alpha = 0.05) + 
+  geom_point(data = df.large, aes(x = mean.d13c, y = mean.d15n, group = taxon), 
+             color = color_pal,  
+             size = 2) +
+  geom_errorbar(data = df.large, 
+                mapping = aes(x = mean.d13c,
+                              ymin = mean.d15n - sd.d15n, 
+                              ymax = mean.d15n + sd.d15n), 
+                width = 0,
+                lwd = 1,
+                color = color_pal,
+                inherit.aes = FALSE) +
+  geom_errorbarh(data = df.large, 
+                 mapping = aes(y = mean.d15n,
+                               xmin = mean.d13c - sd.d13c,
+                               xmax = mean.d13c + sd.d13c),
+                 height = 0, 
+                 lwd = 1,
+                 colour = color_pal,
+                 inherit.aes = FALSE) +
+  ylab(expression(paste(delta^{15}, "N \u00B1 SE")))+
+  xlab(expression(paste(delta^{13}, "C \u00B1 SE"))) + 
+  xlim(c(-36, -20)) + 
+  ylim(c(-15, 20)) +
+  scale_colour_manual(values = color_pal) +
+  guides(color = guide_legend(override.aes = list(alpha = 1, size = 2), reverse = TRUE)) +
+  ggtitle("Large")
+
+library(patchwork)
+
+tiff("biplots-by-size-together.tiff", units = "px", width =2500, height = 1000, res = 600)
+small_plot + medium_plot + large_plot + 
+  plot_layout(guides = 'collect') &
+  theme(legend.position = "top") +
+  plot_annotation(tag_levels = 'A')
+dev.off()
+```
+# Sources: 
+Contact dobrist@sfu.ca for access to these data:
+```{r}
+wrack <- read.csv("wrack-isotopes.csv")
+otters <- read.csv("otter-isotopes.csv")
+
+mean(wrack$d13C) # -15.5
+sd(wrack$d13C) # 2.9
+
+mean(wrack$d15N) # 7.3
+sd(wrack$d15N) # 1.0
+
+mean(otters$X13C) # -30.1
+sd(otters$X13C) # 2.1
+
+mean(otters$X15N) # 9.6
+sd(otters$X15N) # 4.2
+
+soil <- df[df$taxon == "soil", ]
+mean(soil$d15n) # 4.4
+sd(soil$d15n) # 4.3
+
+salal <- df[df$taxon == "SAL", ]
+mean(salal$d15n) # -0.3
+sd(salal$d15n) # 5.6
+mean(salal$d13c) # -31.4
+
+flv <- df[df$taxon == "FLV", ]
+mean(flv$d15n) # - 2.1
+sd(flv$d15n) # 6.4
+```
+# Interaction plots: 
+```{r}
+library(interactions) 
+interact_plot(soil_mod, pred = ln.shoredist.std, modx = l.area.std)
+
+interactions::interact_plot(SAL_mod, pred = ln.shoredist.std, modx = l.area.std)
+
+interactions::interact_plot(FLV_mod, pred = ln.shoredist.std, modx = l.area.std) 
+```
+
+
