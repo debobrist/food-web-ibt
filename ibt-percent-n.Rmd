@@ -1,0 +1,1598 @@
+---
+title: "Does higher d15N correspond with higher %N?"
+author: "Debora Obrist"
+date: "22/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Set up: 
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(lme4)
+library(MuMIn)
+library(AICcmodavg)
+library(patchwork)
+library(glmmTMB)
+
+df <- read.csv("food-web-ibt-2021.csv")
+```
+
+# Models by species: 
+```{r}
+# SOIL: 
+soil_dat <- df %>% 
+  dplyr::filter(taxon == "soil") %>% 
+  dplyr::filter(!is.na(shoredist)) %>% # remove 4 NAs for distance to shoredist
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::mutate(d15n.std = scale(d15n))
+
+soil_mod <- glmmTMB(tot.n ~ l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                    data = soil_dat, 
+                    na.action = "na.fail",
+                    REML = FALSE)
+
+r.squaredGLMM(soil_mod) # Marginal (fixed): 0.14, conditional (inc random): 0.25
+summary(soil_mod)
+
+soil_mod2 <- glmmTMB(tot.n ~ d15n.std + l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                     data = soil_dat, 
+                     na.action = "na.fail",
+                     REML = FALSE)
+
+r.squaredGLMM(soil_mod2) # Marginal (fixed): 0.16, conditional (inc random): 0.24
+summary(soil_mod2)
+
+soil_dredge <- dredge(soil_mod)
+soil_mods <- get.models(soil_dredge, subset = TRUE)
+soil_avg <- model.avg(soil_mods, fit = TRUE) 
+
+saveRDS(soil_avg, "soil_avg_mod_totn.rds")
+
+soil_dredge2 <- dredge(soil_mod2)
+soil_mods2 <- get.models(soil_dredge2, subset = TRUE)
+soil_avg2 <- model.avg(soil_mods2, fit = TRUE) 
+
+saveRDS(soil_avg2, "soil_avg_mod_totn2.rds")
+
+# Salal - Remove Deb's 2016 samples:
+SAL_dat <- df %>% 
+  dplyr::filter(taxon == "SAL") %>% 
+  dplyr::filter(!is.na(shoredist)) %>% 
+  dplyr::filter(!c(year == "2016" & collector == "DSO")) %>% # problems at the isotope lab affecting total N
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::mutate(d15n.std = scale(d15n))
+
+SAL_mod <- glmmTMB(tot.n ~ l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = SAL_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+r.squaredGLMM(SAL_mod) # Marginal (fixed): 0.02, conditional (inc random): 0.13
+
+SAL_mod2 <- glmmTMB(tot.n ~ d15n.std + l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                    data = SAL_dat, 
+                    na.action = "na.fail",
+                    REML = FALSE)
+
+r.squaredGLMM(SAL_mod2) # Marginal (fixed): 0.07, conditional (inc random): 0.15
+
+SAL_dredge <- dredge(SAL_mod)
+SAL_avg <- model.avg(SAL_dredge, fit = TRUE) 
+saveRDS(SAL_avg, "SAL_avg_mod_totn.rds")
+
+SAL_dredge2 <- dredge(SAL_mod2)
+SAL_avg2 <- model.avg(SAL_dredge2, fit = TRUE) 
+saveRDS(SAL_avg2, "SAL_avg_mod_totn2.rds")
+
+FLV_dat <- df %>% 
+  dplyr::filter(taxon == "FLV") %>% 
+  dplyr::filter(!is.na(shoredist)) %>% 
+  dplyr::filter(!year == 2016) %>% # Only my samples are labelled - Owen's are fine.
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::mutate(d15n.std = scale(d15n))
+
+FLV_mod <- glmmTMB(tot.n ~ l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = FLV_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+FLV_mod2 <- glmmTMB(tot.n ~ d15n.std + l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                    data = FLV_dat, 
+                    na.action = "na.fail",
+                    REML = FALSE)
+
+r.squaredGLMM(FLV_mod) # Marginal (fixed): 0.14, conditional (inc random): 0.70
+
+FLV_dredge <- dredge(FLV_mod)
+FLV_avg <- model.avg(FLV_dredge, fit = TRUE) 
+saveRDS(FLV_avg, "FLV_avg_mod_totn.rds")
+
+FLV_dredge2 <- dredge(FLV_mod2)
+FLV_avg2 <- model.avg(FLV_dredge2, fit = TRUE) 
+saveRDS(FLV_avg2, "FLV_avg_mod_totn2.rds")
+
+r.squaredGLMM(FLV_mod2) # Marginal (fixed): 0.16, conditional (inc random): 0.70
+
+CUR_dat <- df %>% 
+  dplyr::filter(taxon == "CUR") %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::mutate(d15n.std = scale(d15n))
+
+CUR_mod <- glmmTMB(tot.n ~ l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = CUR_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+CUR_mod2 <- glmmTMB(tot.n ~ d15n.std + l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                    data = CUR_dat, 
+                    na.action = "na.fail",
+                    REML = FALSE)
+
+
+r.squaredGLMM(CUR_mod) # Marginal (fixed): 0.04, conditional (inc random): 0.04
+
+CUR_dredge <- dredge(CUR_mod)
+CUR_avg <- model.avg(CUR_dredge, fit = TRUE) 
+saveRDS(CUR_avg, "CUR_avg_mod_totn.rds")
+
+CUR_dredge2 <- dredge(CUR_mod2)
+CUR_avg2 <- model.avg(CUR_dredge2, fit = TRUE) 
+saveRDS(CUR_avg2, "CUR_avg_mod_totn2.rds")
+
+r.squaredGLMM(CUR_mod2) # Marginal (fixed): 0.04, conditional (inc random): 0.04
+
+ISO_dat <- df %>% 
+  dplyr::filter(taxon == "ISO") %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::mutate(d15n.std = scale(d15n))
+
+
+ISO_mod <- glmmTMB(tot.n ~ l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = ISO_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+ISO_mod2 <- glmmTMB(tot.n ~ d15n.std + l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                    data = ISO_dat, 
+                    na.action = "na.fail",
+                    REML = FALSE)
+
+r.squaredGLMM(ISO_mod) # Marginal (fixed): 0.07, conditional (inc random): 0.24
+
+ISO_dredge <- dredge(ISO_mod)
+ISO_avg <- model.avg(ISO_dredge, fit = TRUE) 
+saveRDS(ISO_avg, "ISO_avg_mod_totn.rds")
+
+ISO_dredge2 <- dredge(ISO_mod2)
+ISO_avg2 <- model.avg(ISO_dredge2, fit = TRUE) 
+saveRDS(ISO_avg2, "ISO_avg_mod_totn2.rds")
+
+r.squaredGLMM(ISO_mod2) # Marginal (fixed): 0.08, conditional (inc random): 0.23
+
+COL_dat <- df %>% 
+  dplyr::filter(taxon == "COL") %>% 
+  dplyr::mutate(shoredist.std = scale(l.shoredist)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::filter(!is.na(tot.n)) %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::mutate(d15n.std = scale(d15n))
+
+hist(COL_dat$tot.n)
+
+COL_mod <- glmmTMB(tot.n ~ l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                   data = COL_dat, 
+                   na.action = "na.fail",
+                   REML = FALSE)
+
+COL_mod2 <- glmmTMB(tot.n ~ d15n.std + l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                    data = COL_dat, 
+                    na.action = "na.fail",
+                    REML = FALSE)
+
+
+r.squaredGLMM(COL_mod) # Marginal (fixed): 0.06, conditional (inc random): 0.24
+
+COL_dredge <- dredge(COL_mod)
+COL_avg <- model.avg(COL_dredge, fit = TRUE) 
+saveRDS(COL_avg, "COL_avg_mod_totn.rds")
+
+COL_dredge2 <- dredge(COL_mod2)
+COL_avg2 <- model.avg(COL_dredge2, fit = TRUE) 
+saveRDS(COL_avg2, "COL_avg_mod_totn2.rds")
+
+r.squaredGLMM(COL_mod2) # Marginal (fixed): 0.08, conditional (inc random): 0.24
+
+feces_dat <- df %>% 
+  dplyr::filter(taxon == "feces") %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::filter(tot.n < 40) %>% # There's one value at 66 which is clearly wrong
+  dplyr::filter(!grepl('2016', year)) %>%  # Rm all 2016 (not weighed properly)
+  dplyr::mutate(d15n.std = scale(d15n))
+
+
+feces_mod <- glmmTMB(tot.n ~ l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                     data = feces_dat, 
+                     na.action = "na.fail",
+                     REML = FALSE)
+
+feces_mod2 <- glmmTMB(tot.n ~ d15n.std + l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                      data = feces_dat, 
+                      na.action = "na.fail",
+                      REML = FALSE)
+
+r.squaredGLMM(feces_mod) # Marginal (fixed): 0.16, conditional (inc random): 0.31
+
+feces_dredge <- dredge(feces_mod)
+feces_avg <- model.avg(feces_dredge, fit = TRUE) 
+saveRDS(feces_avg, "feces_avg_mod_totn.rds")
+
+feces_dredge2 <- dredge(feces_mod2)
+feces_avg2 <- model.avg(feces_dredge2, fit = TRUE) 
+saveRDS(feces_avg2, "feces_avg_mod_totn2.rds")
+
+r.squaredGLMM(feces_mod2) # Marginal (fixed): 0.17, conditional (inc random): 0.31
+
+feather_dat <- df %>% 
+  dplyr::filter(taxon == "feather") %>% 
+  dplyr::mutate(l.area.std = scale(l.area)) %>% 
+  dplyr::mutate(slope.std = scale(slope_mean)) %>% 
+  dplyr::mutate(ln.shoredist.std = scale(ln.shoredist)) %>% 
+  dplyr::mutate(sqrt.wrack.std = scale(sqrt.wrack)) %>% 
+  dplyr::filter(!grepl('2016', year)) %>% 
+  dplyr::mutate(d15n.std = scale(d15n))
+
+
+feather_mod <- glmmTMB(tot.n ~ l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                       data = feather_dat, 
+                       na.action = "na.fail",
+                       REML = FALSE)
+
+feather_mod2 <- glmmTMB(tot.n ~ d15n.std + l.area.std + ln.shoredist.std + slope.std + sqrt.wrack.std + (1|island), 
+                        data = feather_dat, 
+                        na.action = "na.fail",
+                        REML = FALSE)
+
+r.squaredGLMM(feather_mod) # Marginal (fixed): 0.04, conditional (inc random): 0.13
+
+feather_dredge <- dredge(feather_mod)
+feather_avg <- model.avg(feather_dredge, fit = TRUE) 
+saveRDS(feather_avg, "feather_avg_mod_totn.rds")
+
+feather_dredge2 <- dredge(feather_mod2)
+feather_avg2 <- model.avg(feather_dredge2, fit = TRUE) 
+saveRDS(feather_avg2, "feather_avg_mod_totn2.rds")
+
+r.squaredGLMM(feather_mod2) # Marginal (fixed): 0.05, conditional (inc random): 0.17
+```
+
+# Model diagnostics:
+```{r}
+performance::check_collinearity(soil_mod2)
+qqnorm(resid(soil_mod2), col = "grey50")
+qqline(resid(soil_mod2))
+
+simulateResiduals(fittedModel = soil_mod2, plot = T)
+
+hist(resid(soil_mod2), col = "grey50")
+
+# Check individual predictors. This will work if run in sequence but will rewrite simulated_resids for each model as they are run.
+simulated_resids <- simulateResiduals(fittedModel = soil_mod2)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = soil_dat$d15n.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = soil_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = soil_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = soil_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = soil_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Fails KS test but doesn't look terrible
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # Significant but no reason to remove. 20/969 outliers. TONS of data...
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# Salal: 
+performance::check_collinearity(SAL_mod2)
+
+qqnorm(resid(SAL_mod2), col = "#1B7837") 
+qqline(resid(SAL_mod2))
+
+simulateResiduals(fittedModel = SAL_mod2, plot = T)
+
+hist(resid(SAL_mod2), col = "#1B7837")
+
+# Check individual predictors. 
+simulated_resids <- simulateResiduals(fittedModel = SAL_mod2)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = SAL_dat$d15n.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = SAL_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = SAL_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = SAL_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = SAL_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # KS test not good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # There are 30/1180 outliers
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# FLV:
+performance::check_collinearity(FLV_mod2)
+
+qqnorm(resid(FLV_mod2), col = "#7FBF7B")
+qqline(resid(FLV_mod2))
+
+simulateResiduals(fittedModel = FLV_mod2, plot = T)
+
+hist(resid(FLV_mod), col = "#7FBF7B")
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = FLV_mod2)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = FLV_dat$d15n.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = FLV_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = FLV_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = FLV_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = FLV_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # KS test failed but doesn't look too bad.
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# CUR: 
+performance::check_collinearity(CUR_mod2)
+
+qqnorm(resid(CUR_mod2), col = "#D9F0D3")
+qqline(resid(CUR_mod2))
+
+DHARMa::simulateResiduals(fittedModel = CUR_mod2, plot = T)
+
+hist(resid(CUR_mod2), col = "#D9F0D3")
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = CUR_mod2)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = CUR_dat$d15n.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = CUR_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = CUR_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = CUR_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = CUR_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Not great but not the worst
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# ISO: 
+performance::check_collinearity(ISO_mod2)
+
+qqnorm(resid(ISO_mod2), col = "#E7D4E8")
+qqline(resid(ISO_mod2))
+
+DHARMa::simulateResiduals(fittedModel = ISO_mod, plot = T)
+
+hist(resid(ISO_mod2), col = "#E7D4E8")
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = ISO_mod2)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = ISO_dat$d15n.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = ISO_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = ISO_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = ISO_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = ISO_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# COL: 
+performance::check_collinearity(COL_mod2)
+qqnorm(resid(COL_mod2), col = "#AF8DC3")
+qqline(resid(COL_mod2))
+
+DHARMa::simulateResiduals(fittedModel = COL_mod2, plot = T)
+
+hist(resid(COL_mod2), col = "#AF8DC3")
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = COL_mod2)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = COL_dat$d15n.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = COL_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = COL_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = COL_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = COL_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Just barely fails KS test but looks fine
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# Feces 
+performance::check_collinearity(feces_mod2)
+qqnorm(resid(feces_mod2), col = "#762A83")
+qqline(resid(feces_mod2))
+
+DHARMa::simulateResiduals(fittedModel = feces_mod2, plot = T)
+
+hist(resid(feces_mod2), col = "#762A83")
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = feces_mod2)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = feces_dat$d15n.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feces_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feces_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feces_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feces_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+
+# Feathers: 
+performance::check_collinearity(feather_mod2)
+
+qqnorm(resid(feather_mod2), col = "#762A83")
+qqline(resid(feather_mod2))
+dev.off()
+
+DHARMa::simulateResiduals(fittedModel = feather_mod2, plot = T)
+
+hist(resid(feather_mod2), col = "#762A83")
+
+# Check individual predictors:
+simulated_resids <- simulateResiduals(fittedModel = feather_mod2)
+
+# Check individual predictors
+plotResiduals(simulated_resids, form = feather_dat$d15n.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feather_dat$l.area.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feather_dat$ln.shoredist.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feather_dat$slope.std, quantreg = FALSE)
+plotResiduals(simulated_resids, form = feather_dat$sqrt.wrack.std, quantreg = FALSE)
+
+# Goodness of fit test
+testUniformity(simulationOutput = simulated_resids) # Good
+
+# Check for Outliers
+testOutliers(simulationOutput = simulated_resids) # These are fine
+
+# Check for overdispersion
+testDispersion(simulated_resids) # Looks fine
+```
+
+# Results:
+## 1.) Compare between mod with and without d15N: 
+```{r}
+# Refit the above models with lme4::lmer if this code does not work anymore, should give same results:
+aictab(cand.set = c(soil_mod, soil_mod2), modnames = c("without d15n", "with d15N"))
+aictab(c(SAL_mod, SAL_mod2), modnames = c("without d15n", "with d15N"))
+aictab(c(FLV_mod, FLV_mod2), modnames = c("without d15n", "with d15N"))
+aictab(c(CUR_mod, CUR_mod2), modnames = c("without d15n", "with d15N"))
+aictab(c(ISO_mod, ISO_mod2), modnames = c("without d15n", "with d15N"))
+aictab(c(COL_mod, COL_mod2), modnames = c("without d15n", "with d15N"))
+aictab(c(feces_mod, feces_mod2), modnames = c("without d15n", "with d15N"))
+aictab(c(feather_mod, feather_mod2), modnames = c("without d15n", "with d15N"))
+```
+
+## 2.) Coefplot: 
+Feces, with d15n:
+```{r}
+soil_avg <- readRDS("soil_avg_mod_totn2.rds")
+SAL_avg <- readRDS("SAL_avg_mod_totn2.rds")
+FLV_avg <- readRDS("FLV_avg_mod_totn2.rds")
+CUR_avg <- readRDS("CUR_avg_mod_totn2.rds")
+ISO_avg <- readRDS("ISO_avg_mod_totn2.rds")
+COL_avg <- readRDS("COL_avg_mod_totn2.rds")
+feces_avg <- readRDS("feces_avg_mod_totn2.rds")
+
+params <- factor(c("cond(slope.std)", "cond(sqrt.wrack.std)", "cond(ln.shoredist.std)", "cond(l.area.std)", "cond(d15n.std)"))
+
+# SOIL: 
+soil.coefs <- coefTable(soil_avg, full = FALSE)
+soil.coefs <- as.data.frame(soil.coefs)
+soil.coefs$parameters <- rownames(soil.coefs)
+soil.coefs$df <- NULL
+names(soil.coefs) <- c("fit", "fit.se", "parameter")
+
+soil.coefs$parameter <- factor(soil.coefs$parameter, levels = params)
+
+soil.coefs <- soil.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# Salal: 
+SAL.coefs <- coefTable(SAL_avg, full = FALSE)
+SAL.coefs <- as.data.frame(SAL.coefs)
+SAL.coefs$parameters <- rownames(SAL.coefs)
+SAL.coefs$df <- NULL
+names(SAL.coefs) <- c("fit", "fit.se", "parameter")
+
+SAL.coefs$parameter <- factor(SAL.coefs$parameter, levels = params)
+
+SAL.coefs <- SAL.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# FLV: 
+FLV.coefs <- coefTable(FLV_avg, full = FALSE)
+FLV.coefs <- as.data.frame(FLV.coefs)
+FLV.coefs$parameters <- rownames(FLV.coefs)
+FLV.coefs$df <- NULL
+names(FLV.coefs) <- c("fit", "fit.se", "parameter")
+
+FLV.coefs$parameter <- factor(FLV.coefs$parameter, levels = params)
+
+FLV.coefs <- FLV.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# CUR:
+CUR.coefs <- coefTable(CUR_avg, full = FALSE)
+CUR.coefs <- as.data.frame(CUR.coefs)
+CUR.coefs$parameters <- rownames(CUR.coefs)
+CUR.coefs$df <- NULL
+names(CUR.coefs) <- c("fit", "fit.se", "parameter")
+
+CUR.coefs$parameter <- factor(CUR.coefs$parameter, levels = params)
+
+CUR.coefs <- CUR.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# ISO: 
+ISO.coefs <- coefTable(ISO_avg, full = FALSE)
+ISO.coefs <- as.data.frame(ISO.coefs)
+ISO.coefs$parameters <- rownames(ISO.coefs)
+ISO.coefs$df <- NULL
+names(ISO.coefs) <- c("fit", "fit.se", "parameter")
+
+ISO.coefs$parameter <- factor(ISO.coefs$parameter, levels = params)
+
+ISO.coefs <- ISO.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# COL: 
+COL.coefs <- coefTable(COL_avg, full = FALSE)
+COL.coefs <- as.data.frame(COL.coefs)
+COL.coefs$parameters <- rownames(COL.coefs)
+COL.coefs$df <- NULL
+names(COL.coefs) <- c("fit", "fit.se", "parameter")
+
+COL.coefs$parameter <- factor(COL.coefs$parameter, levels = params)
+
+COL.coefs <- COL.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# feces: 
+feces.coefs <- coefTable(feces_avg, full = FALSE)
+feces.coefs <- as.data.frame(feces.coefs)
+feces.coefs$parameters <- rownames(feces.coefs)
+feces.coefs$df <- NULL
+names(feces.coefs) <- c("fit", "fit.se", "parameter")
+
+feces.coefs$parameter <- factor(feces.coefs$parameter, levels = params)
+
+feces.coefs <- feces.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+param.labs <- c("mean slope", "sqrt(wrack biomass)", "log10(distance to shore)", "log10(island area)", "d15N")
+
+soil.coefs$taxon <- "soil"
+SAL.coefs$taxon <- "SAL"
+FLV.coefs$taxon <- "FLV"
+CUR.coefs$taxon <- "CUR"
+ISO.coefs$taxon <- "ISO"
+COL.coefs$taxon <- "COL"
+feces.coefs$taxon <- "feces"
+
+coefs <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feces.coefs)
+
+coefs$taxon <- factor(coefs$taxon, 
+                      levels = c("feces", "COL", "ISO", "CUR", "FLV", "SAL", "soil"),  
+                      labels = c("songbirds", "carnivores (beetles)", "detritivores (isopods)", "herbivores (weevils)", "false lily-of-the-valley", "salal", "soil")) 
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+coef_plot_tot.n2 <- ggplot(coefs, aes(x = taxon, y = fit, colour = taxon)) + 
+  theme_bw() +
+  geom_point(size = 8) + 
+  geom_errorbar(aes(ymin = (fit - 1.96 * fit.se), 
+                    ymax = (fit + 1.96 * fit.se), 
+                    width = 0), 
+                lwd = 2) + 
+  geom_hline(yintercept = 0, col = "grey50", linetype = "dashed", lwd = 2) + 
+  facet_wrap(~ parameter, nrow = 5, strip.position = "left") + 
+  theme(panel.grid = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        strip.text.y.left  = element_text(angle = 0, size = 24),
+        strip.background = element_blank(),
+        legend.title = element_blank(), 
+        axis.text = element_text(size = 24), 
+        axis.title = element_text(size = 28), 
+        legend.text = element_text(size = 24)) + 
+  ylab("% N coef") +
+  xlab("") +
+  scale_color_manual(values = color_pal) + 
+  guides(color = guide_legend(reverse = TRUE)) +
+  coord_flip()
+```
+
+Feathers, with d15n - averaged:
+```{r}
+# feathers: 
+feather_avg <- readRDS("feather_avg_mod_totn2.rds")
+
+feather.coefs <- coefTable(feather_avg, full = FALSE)
+feather.coefs <- as.data.frame(feather.coefs)
+feather.coefs$parameters <- rownames(feather.coefs)
+feather.coefs$df <- NULL
+names(feather.coefs) <- c("fit", "fit.se", "parameter")
+
+feather.coefs$parameter <- factor(feather.coefs$parameter, levels = params)
+
+feather.coefs <- feather.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+param.labs <- c("d15n", "mean slope", "sqrt(wrack biomass)", "log10(distance to shore)", "log10(island area)")
+
+
+soil.coefs$taxon <- "soil"
+SAL.coefs$taxon <- "SAL"
+FLV.coefs$taxon <- "FLV"
+CUR.coefs$taxon <- "CUR"
+ISO.coefs$taxon <- "ISO"
+COL.coefs$taxon <- "COL"
+feather.coefs$taxon <- "feather"
+
+coefs <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feather.coefs)
+
+coefs$taxon <- factor(coefs$taxon, 
+                      levels = c("feather", "COL", "ISO", "CUR", "FLV", "SAL", "soil"),  
+                      labels = c("songbirds", "carnivores (beetles)", "detritivores (isopods)", "herbivores (weevils)", "false lily-of-the-valley", "salal", "soil")) 
+
+coefs$parameter <- factor(coefs$parameter,
+                          levels = c("cond(d15n.std)", "cond(l.area.std)", "cond(ln.shoredist.std)", "cond(sqrt.wrack.std)", "cond(slope.std)"),
+                          labels = c((expression(paste("\n"," ", delta^{15}, "N"))), "Island~area", "Distance~to~shore", "Wrack~biomass", "Mean~island~slope"))
+
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+# function to modify vertical spacing between legend keys
+# @clauswilke
+draw_key_polygon3 <- function(data, params, size) {
+  lwd <- min(data$size, min(size) / 4)
+  
+  grid::rectGrob(
+    width = grid::unit(0.6, "npc"),
+    height = grid::unit(0.6, "npc"),
+    gp = grid::gpar(
+      col = data$colour,
+      fill = alpha(data$fill, data$alpha),
+      lty = data$linetype,
+      lwd = lwd * .pt,
+      linejoin = "mitre"
+    ))
+}
+
+# register new key drawing function, 
+# the effect is global & persistent throughout the R session
+GeomBar$draw_key = draw_key_polygon3
+
+coef_plot_tot.n_feather2 <- ggplot(coefs, aes(x = taxon, y = fit, colour = taxon)) + 
+  theme_bw() +
+  geom_point(size = 2) + 
+  geom_errorbar(aes(ymin = (fit - 1.96 * fit.se), 
+                    ymax = (fit + 1.96 * fit.se), 
+                    width = 0)) +
+  geom_hline(yintercept = 0, col = "grey50", linetype = "dashed", lwd = 1) + 
+  facet_wrap(~ parameter, nrow = 5, strip.position = "left", labeller = label_parsed) + 
+  theme(panel.grid = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        strip.text.y.left  = element_text(angle = 0, size = 12),
+        strip.background = element_blank(),
+        legend.title = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16), 
+        legend.text = element_text(size = 12)) +
+  # legend.key.size = unit(0.3, "cm")) +
+  ylab("%N coef") +
+  xlab("") +
+  scale_x_discrete(name="",
+               breaks = c("cond(d15n.std)", "cond(l.area.std)", "cond(ln.shoredist.std)", "cond(sqrt.wrack.std)", "cond(slope.std)"),
+                          labels = c(expression(paste("\n"," ", delta^{15}, "N")), "island area", "distance to shore", "wrack biomass", "mean island slope")) +
+  scale_color_manual(values = color_pal) + 
+  guides(color = guide_legend(reverse = TRUE)) +
+  coord_flip();coef_plot_tot.n_feather2
+
+dat_text <- data.frame(
+  label = "A",
+  parameter = "d15n", 
+  taxon = "soil"
+)
+
+
+coef_plot_tot.n_feather2 + geom_text(
+  data    = dat_text,
+  mapping = aes(x = -Inf, y = -Inf, label = label),
+  hjust   = -0.3,
+  vjust   = -3.5,
+  colour = "black",
+  size = 6
+)
+
+
+tiff("figures/coefplot-tot.n-feather-d15n.tiff", units = "px", width = 1400, height = 1200, res = 300)
+coef_plot_tot.n_feather2
+dev.off()
+
+coefs_table_totn <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feces.coefs, feather.coefs)
+# write.csv(coefs_table_totn, "tot-n-coef-table.csv")
+```
+
+Feathers, with d15n - global: 
+Check to see if global model is different from averaged across all combinations of parameters. It's pretty much the same.
+```{r}
+# SOIL: 
+soil.coefs <- coefTable(soil_mod2)
+soil.coefs <- as.data.frame(soil.coefs)
+soil.coefs$parameters <- rownames(soil.coefs)
+soil.coefs$df <- NULL
+names(soil.coefs) <- c("fit", "fit.se", "parameter")
+
+soil.coefs$parameter <- factor(soil.coefs$parameter, levels = params)
+
+soil.coefs <- soil.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# Salal: 
+SAL.coefs <- coefTable(SAL_mod2)
+SAL.coefs <- as.data.frame(SAL.coefs)
+SAL.coefs$parameters <- rownames(SAL.coefs)
+SAL.coefs$df <- NULL
+names(SAL.coefs) <- c("fit", "fit.se", "parameter")
+
+SAL.coefs$parameter <- factor(SAL.coefs$parameter, levels = params)
+
+SAL.coefs <- SAL.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# FLV: 
+FLV.coefs <- coefTable(FLV_mod2)
+FLV.coefs <- as.data.frame(FLV.coefs)
+FLV.coefs$parameters <- rownames(FLV.coefs)
+FLV.coefs$df <- NULL
+names(FLV.coefs) <- c("fit", "fit.se", "parameter")
+
+FLV.coefs$parameter <- factor(FLV.coefs$parameter, levels = params)
+
+FLV.coefs <- FLV.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# CUR:
+CUR.coefs <- coefTable(CUR_mod2)
+CUR.coefs <- as.data.frame(CUR.coefs)
+CUR.coefs$parameters <- rownames(CUR.coefs)
+CUR.coefs$df <- NULL
+names(CUR.coefs) <- c("fit", "fit.se", "parameter")
+
+CUR.coefs$parameter <- factor(CUR.coefs$parameter, levels = params)
+
+CUR.coefs <- CUR.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# ISO: 
+ISO.coefs <- coefTable(ISO_mod2)
+ISO.coefs <- as.data.frame(ISO.coefs)
+ISO.coefs$parameters <- rownames(ISO.coefs)
+ISO.coefs$df <- NULL
+names(ISO.coefs) <- c("fit", "fit.se", "parameter")
+
+ISO.coefs$parameter <- factor(ISO.coefs$parameter, levels = params)
+
+ISO.coefs <- ISO.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# COL: 
+COL.coefs <- coefTable(COL_mod2)
+COL.coefs <- as.data.frame(COL.coefs)
+COL.coefs$parameters <- rownames(COL.coefs)
+COL.coefs$df <- NULL
+names(COL.coefs) <- c("fit", "fit.se", "parameter")
+
+COL.coefs$parameter <- factor(COL.coefs$parameter, levels = params)
+
+COL.coefs <- COL.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+# feces: 
+feces.coefs <- coefTable(feces_mod2)
+feces.coefs <- as.data.frame(feces.coefs)
+feces.coefs$parameters <- rownames(feces.coefs)
+feces.coefs$df <- NULL
+names(feces.coefs) <- c("fit", "fit.se", "parameter")
+
+feces.coefs$parameter <- factor(feces.coefs$parameter, levels = params)
+
+feces.coefs <- feces.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+param.labs <- c("mean slope", "sqrt(wrack biomass)", "log10(distance to shore)", "log10(island area)", "d15N")
+
+soil.coefs$taxon <- "soil"
+SAL.coefs$taxon <- "SAL"
+FLV.coefs$taxon <- "FLV"
+CUR.coefs$taxon <- "CUR"
+ISO.coefs$taxon <- "ISO"
+COL.coefs$taxon <- "COL"
+feces.coefs$taxon <- "feces"
+
+coefs <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feces.coefs)
+
+# feathers: 
+
+feather.coefs <- coefTable(feather_mod2)
+feather.coefs <- as.data.frame(feather.coefs)
+feather.coefs$parameters <- rownames(feather.coefs)
+feather.coefs$df <- NULL
+names(feather.coefs) <- c("fit", "fit.se", "parameter")
+
+feather.coefs$parameter <- factor(feather.coefs$parameter, levels = params)
+
+feather.coefs <- feather.coefs %>%
+  slice(match(params, parameter)) # This removes the intercept.
+
+param.labs <- c("d15n", "mean slope", "sqrt(wrack biomass)", "log10(distance to shore)", "log10(island area)")
+
+soil.coefs$taxon <- "soil"
+SAL.coefs$taxon <- "SAL"
+FLV.coefs$taxon <- "FLV"
+CUR.coefs$taxon <- "CUR"
+ISO.coefs$taxon <- "ISO"
+COL.coefs$taxon <- "COL"
+feather.coefs$taxon <- "feather"
+
+coefs <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feather.coefs)
+
+coefs$taxon <- factor(coefs$taxon, 
+                      levels = c("feather", "COL", "ISO", "CUR", "FLV", "SAL", "soil"),  
+                      labels = c("songbirds", "carnivores (beetles)", "detritivores (isopods)", "herbivores (weevils)", "false lily-of-the-valley", "salal", "soil")) 
+
+# coefs <- rbind(soil.coefs, SAL.coefs, FLV.coefs, CUR.coefs, ISO.coefs, COL.coefs, feces.coefs, feather.coefs)
+
+# coefs$taxon <- factor(coefs$taxon, 
+#                       levels = c("feather", "feces", "COL", "ISO", "CUR", "FLV", "SAL", "soil"),  
+#                       labels = c("songbirds - feathers", "songbirds - feces", "carnivores (beetles)", "detritivores (isopods)", "herbivores (weevils)", "false lily-of-the-valley", "salal", "soil")) 
+
+coefs$parameter <- factor(coefs$parameter, 
+                          levels = c("d15n.std", "l.area.std", "ln.shoredist.std", "sqrt.wrack.std", "slope.std"),
+                          labels = c("d15n", "island area", "distance to shore", "wrack biomass", "mean island slope"))
+
+# write.csv(coefs, "data-generated/table-coefs-tot.n.csv", row.names = FALSE)
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+# function to modify vertical spacing between legend keys
+# @clauswilke
+draw_key_polygon3 <- function(data, params, size) {
+  lwd <- min(data$size, min(size) / 4)
+  
+  grid::rectGrob(
+    width = grid::unit(0.6, "npc"),
+    height = grid::unit(0.6, "npc"),
+    gp = grid::gpar(
+      col = data$colour,
+      fill = alpha(data$fill, data$alpha),
+      lty = data$linetype,
+      lwd = lwd * .pt,
+      linejoin = "mitre"
+    ))
+}
+
+# register new key drawing function, 
+# the effect is global & persistent throughout the R session
+GeomBar$draw_key = draw_key_polygon3
+
+coef_plot_tot.n_global <- ggplot(coefs, aes(x = taxon, y = fit, colour = taxon)) + 
+  theme_bw() +
+  geom_point(size = 2) + 
+  geom_errorbar(aes(ymin = (fit - 1.96 * fit.se), 
+                    ymax = (fit + 1.96 * fit.se), 
+                    width = 0)) +
+  geom_hline(yintercept = 0, col = "grey50", linetype = "dashed", lwd = 1) + 
+  facet_wrap(~ parameter, nrow = 5, strip.position = "left") + 
+  theme(panel.grid = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        strip.text.y.left  = element_text(angle = 0, size = 8),
+        strip.background = element_blank(),
+        legend.title = element_blank(), 
+        axis.text = element_text(size = 8), 
+        axis.title = element_text(size = 12), 
+        legend.text = element_text(size = 8),
+        legend.key.size = unit(0.3, "cm")) +
+  ylab("% N coef") +
+  xlab("") +
+  scale_color_manual(values = color_pal) + 
+  guides(color = guide_legend(reverse = TRUE)) +
+  coord_flip()
+
+tiff("figures/coefplot-tot.n-d15n-global.tiff", units = "px", width = 1400, height = 1200, res = 300)
+coef_plot_tot.n_global
+dev.off()
+```
+
+## 3.) Biplots:
+Bootstrap mean, CIs, and PIs: 
+```{r}
+library(glmmTMB)
+library(tidyverse)
+library(MASS)
+
+# Simulate the uncertainty in parameter estimates and generate 95% credible intervals
+coef_a <- c(soil_mod2$fit$par[1:6]) # Extract the point estimates for coefficients from your model (eg. intercept and slope)
+coef_b <- c(SAL_mod2$fit$par[1:6])
+coef_c <- c(FLV_mod2$fit$par[1:6])
+coef_d <- c(CUR_mod2$fit$par[1:6])
+coef_e <- c(ISO_mod2$fit$par[1:6])
+coef_f <- c(COL_mod2$fit$par[1:6])
+coef_g <- c(feces_mod2$fit$par[1:6])
+coef_h <- c(feather_mod2$fit$par[1:6])
+
+vcov_a <- vcov(soil_mod2)[[1]] # Variance-covariance matrix of the parameter estimates
+vcov_b <- vcov(SAL_mod2)[[1]]
+vcov_c <- vcov(FLV_mod2)[[1]]
+vcov_d <- vcov(CUR_mod2)[[1]]
+vcov_e <- vcov(ISO_mod2)[[1]]
+vcov_f <- vcov(COL_mod2)[[1]]
+vcov_g <- vcov(feces_mod2)[[1]]
+vcov_h <- vcov(feather_mod2)[[1]]
+
+pars.resamp.a <- mvrnorm(500, mu = coef_a, Sigma = vcov_a) # Multivariate normal simulation of errors - gives the mean and the VCV matrix
+pars.resamp.b <- mvrnorm(500, mu = coef_b, Sigma = vcov_b)
+pars.resamp.c <- mvrnorm(500, mu = coef_c, Sigma = vcov_c)
+pars.resamp.d <- mvrnorm(500, mu = coef_d, Sigma = vcov_d)
+pars.resamp.e <- mvrnorm(500, mu = coef_e, Sigma = vcov_e)
+pars.resamp.f <- mvrnorm(500, mu = coef_f, Sigma = vcov_f)
+pars.resamp.g <- mvrnorm(500, mu = coef_g, Sigma = vcov_g)
+pars.resamp.h <- mvrnorm(500, mu = coef_h, Sigma = vcov_h)
+
+x.a <- seq(min(soil_dat$d15n.std), max(soil_dat$d15n.std), length.out = 1000) # dummy variable for your predictor 
+x.b <- seq(min(SAL_dat$d15n.std), max(SAL_dat$d15n.std), length.out = 1000)
+x.c <- seq(min(FLV_dat$d15n.std), max(FLV_dat$d15n.std), length.out = 1000)
+x.d <- seq(min(CUR_dat$d15n.std), max(CUR_dat$d15n.std), length.out = 1000)
+x.e <- seq(min(ISO_dat$d15n.std), max(ISO_dat$d15n.std), length.out = 1000)
+x.f <- seq(min(COL_dat$d15n.std), max(COL_dat$d15n.std), length.out = 1000)
+x.g <- seq(min(feces_dat$d15n.std), max(feces_dat$d15n.std), length.out = 1000)
+x.h <- seq(min(feather_dat$d15n.std), max(feather_dat$d15n.std), length.out = 1000)
+
+y.conf <- list() #Create an empty list for the estimate y values for each simulation run
+
+# Create dataframe for each value of X, the limits on y from the simulation
+pred.frame.a <-  expand.grid(x = x.a,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.b <-  expand.grid(x = x.b,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.c <-  expand.grid(x = x.c,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.d <-  expand.grid(x = x.d,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.e <-  expand.grid(x = x.e,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.f <-  expand.grid(x = x.f,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.g <-  expand.grid(x = x.g,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+pred.frame.h <-  expand.grid(x = x.h,
+                             l.ci = NA, 
+                             u.ci = NA,
+                             l.pi = NA,
+                             u.pi = NA,
+                             m = NA) 
+
+# Soil model:
+# Calculate additional variance due to random effects & random noise: 
+summary(soil_mod2)
+sqrt(0.0114 + 0.1084) # 0.3461214
+y.conf <- list() 
+
+for(z in 1:length(x.a)){
+  y.conf[[z]] <- pars.resamp.a[,1] + pars.resamp.a[,2] * x.a[z]  # fit the estimate based on the sampled intercept and slopes
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.a[t,1] + pars.resamp.a[t,2]*x.a[z], 0.3461214)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.a[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.a[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.a[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.a[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.a[z,6] <- coef_a[1] + coef_a[2] * x.a[z]
+}
+
+# Salal model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(SAL_mod2)
+sqrt(0.006052 + 0.065711) # 0.2678862
+y.conf <- list() 
+
+for(z in 1:length(x.b)){
+  y.conf[[z]] <- pars.resamp.b[,1] + pars.resamp.b[,2] * x.b[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.b[t,1] + pars.resamp.b[t,2]*x.b[z], 0.2678862)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.b[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.b[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.b[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.b[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.b[z,6] <- coef_b[1] + coef_b[2] * x.b[z]
+}
+
+# False lily-of-the-Valley model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(FLV_mod2)
+sqrt(0.3272 + 0.1837) # 0.7147727
+y.conf <- list() 
+
+for(z in 1:length(x.c)){
+  y.conf[[z]] <- pars.resamp.c[,1] + pars.resamp.c[,2] * x.c[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.c[t,1] + pars.resamp.c[t,2]*x.c[z], 0.7147727)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.c[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.c[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.c[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.c[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.c[z,6] <- coef_c[1] + coef_c[2] * x.c[z]
+}
+
+
+# Herbivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(CUR_mod2)
+sqrt(9.888e-11 + 2.219e-01) # 0.4710626
+y.conf <- list() 
+
+for(z in 1:length(x.d)){
+  y.conf[[z]] <- pars.resamp.d[,1] + pars.resamp.d[,2] * x.d[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.d[t,1] + pars.resamp.d[t,2]*x.d[z], 0.4710626)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.d[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.d[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.d[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.d[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.d[z,6] <- coef_d[1] + coef_d[2] * x.d[z]
+}
+
+# Detritivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(ISO_mod2)
+sqrt(0.1853 + 0.9201) # 1.05138
+y.conf <- list() 
+
+for(z in 1:length(x.e)){
+  y.conf[[z]] <- pars.resamp.e[,1] + pars.resamp.e[,2] * x.e[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.e[t,1] + pars.resamp.e[t,2]*x.e[z], 1.05138)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.e[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.e[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.e[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.e[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.e[z,6] <- coef_e[1] + coef_e[2] * x.e[z]
+}
+
+# Carnivore model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(COL_mod2)
+sqrt(0.1492 + 0.7061) # 0.9248243
+y.conf <- list() 
+
+for(z in 1:length(x.f)){
+  y.conf[[z]] <- pars.resamp.f[,1] + pars.resamp.f[,2] * x.f[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.f[t,1] + pars.resamp.f[t,2]*x.f[z], 0.9248243)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.f[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.f[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.f[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.f[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.f[z,6] <- coef_f[1] + coef_f[2] * x.f[z]
+}
+
+# Songbird (feces) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feces_mod2)
+sqrt(3.938 + 19.921) # 4.884568
+y.conf <- list() 
+
+for(z in 1:length(x.g)){
+  y.conf[[z]] <- pars.resamp.g[,1] + pars.resamp.g[,2] * x.g[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.g[t,1] + pars.resamp.g[t,2]*x.g[z], 4.835907)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.g[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.g[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.g[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.g[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.g[z,6] <- coef_g[1] + coef_g[2] * x.g[z]
+}
+
+# Songbird (feather) model: 
+# Calculate additional variance due to random effects & random noise: 
+summary(feather_mod2)
+sqrt(0.03994 + 0.29479) # 0.5785586
+y.conf <- list() 
+
+for(z in 1:length(x.h)){
+  y.conf[[z]] <- pars.resamp.h[,1] + pars.resamp.h[,2] * x.h[z] 
+  pred.temp <- list()
+  for(t in 1:500){
+    pred.temp[[t]]<- rnorm(500,pars.resamp.h[t,1] + pars.resamp.h[t,2]*x.h[z], 0.5785586)   # add in model standard deviation
+    
+  }
+  pred.temp.all<- do.call(rbind, lapply(pred.temp, data.frame, stringsAsFactors=FALSE))
+  pred.frame.h[z,2]<- quantile(y.conf[[z]], 0.025)
+  pred.frame.h[z,3]<- quantile(y.conf[[z]], 0.975)
+  pred.frame.h[z,4]<- quantile(pred.temp.all[,1], 0.025)
+  pred.frame.h[z,5]<- quantile(pred.temp.all[,1], 0.975)
+  pred.frame.h[z,6] <- coef_h[1] + coef_h[2] * x.h[z]
+}
+```
+
+Plot:
+```{r}
+pred.frame.a <- pred.frame.a %>% 
+  rename(d15n.std = x, tot.n = m)
+write.csv(pred.frame.a, "data-generated/for-figures/soil-preds-d15n-totn.csv")
+
+pred.frame.b <- pred.frame.b %>% 
+  rename(d15n.std = x, tot.n = m)
+write.csv(pred.frame.b, "data-generated/for-figures/SAL-preds-d15n-totn.csv")
+
+pred.frame.c <- pred.frame.c %>% 
+  rename(d15n.std = x, tot.n = m)
+write.csv(pred.frame.c, "data-generated/for-figures/FLV-preds-d15n-totn.csv")
+
+pred.frame.d <- pred.frame.d %>% 
+  rename(d15n.std = x, tot.n = m)
+write.csv(pred.frame.d, "data-generated/for-figures/CUR-preds-d15n-totn.csv")
+
+pred.frame.e <- pred.frame.e %>% 
+  rename(d15n.std = x, tot.n = m)
+write.csv(pred.frame.e, "data-generated/for-figures/ISO-preds-d15n-totn.csv")
+
+pred.frame.f <- pred.frame.f %>% 
+  rename(d15n.std = x, tot.n = m)
+write.csv(pred.frame.f, "data-generated/for-figures/COL-preds-d15n-totn.csv")
+
+pred.frame.g <- pred.frame.g %>% 
+  rename(d15n.std = x, tot.n = m)
+write.csv(pred.frame.g, "data-generated/for-figures/feces-preds-d15n-totn.csv")
+
+pred.frame.h <- pred.frame.h %>% 
+  rename(d15n.std = x, tot.n = m)
+write.csv(pred.frame.h, "data-generated/for-figures/feather-preds-d15n-totn.csv")
+
+unstandardize.d15n <- function() {
+  function(x) format(x*sd(soil_dat$d15n) + mean(soil_dat$d15n), digits = 0)
+}
+
+color_pal <- c(RColorBrewer::brewer.pal(n = 6, name = "PRGn"), "grey50")
+
+tiff("figures/tot.n-d15n-soil-plants-bootstrapped-w-PI.tiff", units = "px", res = 300, width = 1200, height = 900)
+limited <- ggplot(NULL, aes(y = tot.n, x = d15n.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) + 
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) + 
+  geom_line(data = pred.frame.a, aes(y = tot.n), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) + 
+  geom_ribbon(data = pred.frame.a, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[7]) +
+  geom_line(data = pred.frame.b, aes(y = tot.n), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) + 
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[6]) +
+  geom_line(data = pred.frame.c, aes(y = tot.n), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) + 
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[5]) +
+  xlab(expression(paste("\n"," ", delta^{15}, "N"))) +
+  scale_x_continuous(limits = c(-3.1, 3.52), 
+                     breaks = c(-3.3, -2.2, -1, 0.2, 1.4, 2.4, 3.6), 
+                     labels = unstandardize.d15n()) +
+  scale_y_continuous(limits = c(0, 5), 
+                     breaks = c(0, 1, 2, 3, 4, 5)) +
+  ylab("% N");limited
+dev.off()
+
+tiff("figures/tot.n-d15n-soil-plants-bootstrapped-CI.tiff", units = "px", res = 300, width = 1200, height = 900)
+limited2 <- ggplot(NULL, aes(y = tot.n, x = d15n.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) + 
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) +
+  geom_line(data = pred.frame.a, aes(y = tot.n), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) +
+   geom_line(data = pred.frame.b, aes(y = tot.n), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) +
+   geom_line(data = pred.frame.c, aes(y = tot.n), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+  xlab(expression(paste("\n"," ", delta^{15}, "N"))) +
+  scale_x_continuous(limits = c(-2.9, 3.52), 
+                     breaks = c(-2.2, -1, 0.2, 1.4, 2.4, 3.6), 
+                     labels = unstandardize.d15n()) +
+  scale_y_continuous(limits = c(0, 5), 
+                     breaks = c(0, 1, 2, 3, 4, 5)) +
+  ylab("% N");limited2
+dev.off()
+
+tiff("figures/tot.n-d15n-bugs-feces-bootstrapped-w-PI.tiff", units = "px", res = 300, width = 1200, height = 900)
+ggplot(NULL, aes(y = tot.n, x = d15n.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = CUR_dat, alpha = 0.3, colour = color_pal[4], size = 2) +
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) + 
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) + 
+  geom_point(data = feces_dat, alpha = 0.1, colour = color_pal[1], size = 2) + 
+  geom_line(data = pred.frame.d, aes(y = tot.n), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[4]) + 
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[4]) +
+  geom_line(data = pred.frame.e, aes(y = tot.n), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[3]) + 
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[3]) +
+  geom_line(data = pred.frame.f, aes(y = tot.n), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) + 
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[2]) +
+  geom_line(data = pred.frame.g, aes(y = tot.n), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) + 
+  geom_ribbon(data = pred.frame.g, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[1]) +
+  xlab(expression(paste("\n"," ", delta^{15}, "N"))) +
+  scale_x_continuous(limits = c(-2.9, 3.52),
+                     breaks = c(-2.2, -1, 0.2, 1.4, 2.4, 3.6),
+                     labels = unstandardize.d15n()) +
+  scale_y_continuous(limits = c(0, 27),
+                     breaks = c(0, 5, 10, 15, 20, 25)) +
+  ylab("% N") 
+dev.off()
+
+tiff("figures/tot.n-d15n-bugs-feces-bootstrapped-CI.tiff", units = "px", res = 300, width = 1200, height = 900)
+ggplot(NULL, aes(y = tot.n, x = d15n.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = CUR_dat, alpha = 0.3, colour = color_pal[4], size = 2) + 
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) + 
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) + 
+  geom_point(data = feces_dat, alpha = 0.1, colour = color_pal[1], size = 2) + 
+  geom_line(data = pred.frame.g, aes(y = tot.n), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.g, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) + 
+  geom_line(data = pred.frame.d, aes(y = tot.n), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[4]) + 
+  geom_line(data = pred.frame.e, aes(y = tot.n), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[3]) + 
+   geom_line(data = pred.frame.f, aes(y = tot.n), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) +
+  xlab(expression(paste("\n"," ", delta^{15}, "N"))) +
+  scale_x_continuous(limits = c(-2.9, 3.52),
+                     breaks = c(-2.2, -1, 0.2, 1.4, 2.4, 3.6),
+                     labels = unstandardize.d15n()) +
+  scale_y_continuous(limits = c(0, 27),
+                     breaks = c(0, 5, 10, 15, 20, 25)) +
+  ylab("% N") 
+dev.off()
+
+tiff("figures/tot.n-d15n-bugs-feather-bootstrapped-w-PI.tiff", units = "px", res = 300, width = 1200, height = 900)
+non.limited <- ggplot(NULL, aes(y = tot.n, x = d15n.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text.y = element_text(size = 12), 
+        axis.title.y = element_text(size = 16), 
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank()) +
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) + 
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) + 
+  geom_point(data = feather_dat, alpha = 0.1, colour = color_pal[1], size = 2) + 
+  geom_point(data = CUR_dat, alpha = 0.3, colour = color_pal[4], size = 2) + 
+  geom_line(data = pred.frame.e, aes(y = tot.n), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[3]) + 
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[3]) +
+  geom_line(data = pred.frame.f, aes(y = tot.n), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) + 
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[2]) +
+   geom_line(data = pred.frame.h, aes(y = tot.n), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.h, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) + 
+  geom_ribbon(data = pred.frame.h, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[1]) +
+  geom_line(data = pred.frame.d, aes(y = tot.n), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[4]) + 
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.pi, ymax = u.pi), alpha = .1, linetype = 0, fill = color_pal[4]) +
+  xlab(expression(paste("\n"," ", delta^{15}, "N"))) +
+  scale_x_continuous(limits = c(-3.1, 3.52), 
+                     breaks = c(-3.3, -2.2, -1, 0.2, 1.4, 2.4, 3.6), 
+                     labels = unstandardize.d15n()) +
+  scale_y_continuous(limits = c(3, 17),
+                     breaks = c(4, 8, 12, 16)) +
+  ylab("% N");non.limited
+dev.off()
+
+tiff("figures/tot.n-d15n-bugs-feathers-bootstrapped-CI.tiff", units = "px", res = 300, width = 1200, height = 900)
+nonlimited2 <- ggplot(NULL, aes(y = tot.n, x = d15n.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = CUR_dat, alpha = 0.3, colour = color_pal[4], size = 2) + 
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) + 
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) + 
+  geom_point(data = feather_dat, alpha = 0.1, colour = color_pal[1], size = 2) + 
+  geom_line(data = pred.frame.d, aes(y = tot.n), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[4]) + 
+  geom_line(data = pred.frame.e, aes(y = tot.n), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[3]) + 
+  geom_line(data = pred.frame.f, aes(y = tot.n), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) + 
+  geom_line(data = pred.frame.h, aes(y = tot.n), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.h, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) + 
+  xlab(expression(paste("\n"," ", delta^{15}, "N"))) +
+  scale_x_continuous(limits = c(-2.9, 3.52),
+                     breaks = c(-2.2, -1, 0.2, 1.4, 2.4, 3.6),
+                     labels = unstandardize.d15n()) +
+  scale_y_continuous(limits = c(0, 20),
+                     breaks = c(0, 5, 10, 15, 20)) +
+  ylab("% N");nonlimited2
+dev.off()
+
+```
+
+For paper: 
+```{r}
+limited2 <- ggplot(NULL, aes(y = tot.n, x = d15n.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16)) +
+  geom_point(data = soil_dat, alpha = 0.1, colour = color_pal[7], size = 2) + 
+  geom_point(data = SAL_dat, alpha = 0.1, colour = color_pal[6], size = 2) + 
+  geom_point(data = FLV_dat, alpha = 0.1, colour = color_pal[5], size = 2) +
+  geom_line(data = pred.frame.a, aes(y = tot.n), colour = color_pal[7]) +
+  geom_ribbon(data = pred.frame.a, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[7]) +
+   geom_line(data = pred.frame.b, aes(y = tot.n), colour = color_pal[6]) +
+  geom_ribbon(data = pred.frame.b, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[6]) +
+   geom_line(data = pred.frame.c, aes(y = tot.n), colour = color_pal[5]) +
+  geom_ribbon(data = pred.frame.c, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[5]) +
+  xlab(expression(paste("\n"," ", delta^{15}, "N"))) +
+  scale_x_continuous(limits = c(-3.1, 3.52), 
+                     breaks = c(-3.3, -2.2, -1, 0.2, 1.4, 2.4, 3.6), 
+                     labels = unstandardize.d15n()) +
+  scale_y_continuous(limits = c(0, 5), 
+                     breaks = c(0, 1, 2, 3, 4, 5)) +
+  ylab("% N");limited2
+
+nonlimited2 <- ggplot(NULL, aes(y = tot.n, x = d15n.std)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(), 
+        axis.text.x = element_blank(), 
+        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(size = 16),
+        axis.title.x = element_blank()) +
+  geom_point(data = CUR_dat, alpha = 0.3, colour = color_pal[4], size = 2) + 
+  geom_point(data = ISO_dat, alpha = 0.1, colour = color_pal[3], size = 2) + 
+  geom_point(data = COL_dat, alpha = 0.1, colour = color_pal[2], size = 2) + 
+  geom_point(data = feather_dat, alpha = 0.1, colour = color_pal[1], size = 2) + 
+  geom_line(data = pred.frame.d, aes(y = tot.n), colour = color_pal[4]) +
+  geom_ribbon(data = pred.frame.d, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[4]) + 
+  geom_line(data = pred.frame.e, aes(y = tot.n), colour = color_pal[3]) +
+  geom_ribbon(data = pred.frame.e, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[3]) + 
+  geom_line(data = pred.frame.f, aes(y = tot.n), colour = color_pal[2]) +
+  geom_ribbon(data = pred.frame.f, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[2]) + 
+  geom_line(data = pred.frame.h, aes(y = tot.n), colour = color_pal[1]) +
+  geom_ribbon(data = pred.frame.h, aes(ymin = l.ci, ymax = u.ci), alpha = .3, linetype = 0, fill = color_pal[1]) +
+  scale_x_continuous(limits = c(-3.1, 3.52), 
+                     breaks = c(-3.3, -2.2, -1, 0.2, 1.4, 2.4, 3.6), 
+                     labels = unstandardize.d15n()) +
+  scale_y_continuous(limits = c(3, 17),
+                     breaks = c(4, 8, 12, 16));nonlimited2
+
+nonlimited2 <- nonlimited2 + 
+  ylab("") +
+  xlab("") +
+  theme(axis.text.x = element_blank()) +
+  annotate("text", x = -2.9, y = 16, label = "B", size = 6)
+
+limited2 <- limited2 + 
+  ylab("") +
+  annotate("text", x = -2.9, y = 4.65, label = "C", size = 6)
+
+dat_text <- data.frame(
+  label = "A",
+  parameter = "d15n", 
+  taxon = "soil"
+)
+
+coef_plot_tot.n_feather2 <- ggplot(coefs, aes(x = taxon, y = fit, colour = taxon)) + 
+  theme_bw() +
+  geom_point(size = 2) + 
+  geom_errorbar(aes(ymin = (fit - 1.96 * fit.se), 
+                    ymax = (fit + 1.96 * fit.se), 
+                    width = 0)) +
+  geom_hline(yintercept = 0, col = "grey50", linetype = "dashed", lwd = 1) + 
+  facet_wrap(~ parameter, nrow = 5, strip.position = "left", labeller = label_parsed) + 
+  theme(panel.grid = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        strip.text.y.left  = element_text(angle = 0, size = 12),
+        strip.background = element_blank(),
+        legend.title = element_blank(), 
+        axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16), 
+        legend.text = element_text(size = 12)) +
+  # legend.key.size = unit(0.3, "cm")) +
+  ylab("% N coef") +
+  xlab("") +
+  # scale_x_discrete(name="",
+  #              breaks = c("cond(d15n.std)", "cond(l.area.std)", "cond(ln.shoredist.std)", "cond(sqrt.wrack.std)", "cond(slope.std)"),
+  #                         labels = c(expression(paste("\n"," ", delta^{15}, "N")), "island area", "distance to shore", "wrack biomass", "mean island slope")) +
+    scale_x_discrete(name="",
+               breaks = c("d15n", "island area", "distance to shore", "wrack biomass", "mean island slope"),
+                          labels = c(expression(paste("\n"," ", delta^{15}, "N")), "Island area", "Distance to shore", "Wrack biomass", "Mean island slope")) +
+  scale_color_manual(values = color_pal) + 
+  guides(color = guide_legend(reverse = TRUE)) +
+  coord_flip();coef_plot_tot.n_feather2
+
+dat_text <- data.frame(
+  label = "A",
+  parameter = coefs$parameter[5], 
+  taxon = "soil"
+)
+
+coef_plot_tot.n_feather2 <- coef_plot_tot.n_feather2 + 
+  geom_text(data    = dat_text,
+            mapping = aes(x = 4.75, y = -0.5, label = label),
+            hjust   = 0,
+            vjust   = 0,
+            colour = "black",
+            size = 6);coef_plot_tot.n_feather2
+
+
+tiff("figures/tot.n-d15n.tiff", units = "px", res = 600, width = 4800, height = 3200)
+
+(coef_plot_tot.n_feather2 | ((nonlimited2/limited2) + ylab(label = "                                % N")) +
+    plot_layout(guides = 'auto')) + 
+  plot_layout(guides = 'collect') &
+  theme(legend.position = "top") 
+
+dev.off()
+```
+## 4.) RVIS:
+```{r}
+MuMIn::importance(soil_avg2)
+MuMIn::importance(SAL_avg2)
+MuMIn::importance(FLV_avg2)
+MuMIn::importance(CUR_avg2)
+MuMIn::importance(ISO_avg2)
+MuMIn::importance(COL_avg2)
+MuMIn::importance(feces_avg2)
+MuMIn::importance(feather_avg2)
+```
+
