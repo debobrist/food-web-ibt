@@ -1,0 +1,514 @@
+---
+title: "Nutrient pathways SEM analysis"
+author: "Debora Obrist"
+date: "14/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## SEM Analysis: 
+The purpose of this analysis is to answer these questions:
+1.) What are the dominant pathways by which nutrients travel from the sea into upper-level trophic consumers in island ecosystems? 
+and
+2.) How far up the food chain do they travel? 
+
+First, load required packages and data: 
+```{r, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(lavaan)
+library(semTools)
+library(mice)
+
+set.seed(123)
+
+
+dat_d15n <- read.csv("sem-data-d15n.csv")
+
+write.csv(dat_d13c, "sem-data-d13c.csv", row.names = FALSE)
+```
+
+This was my first attempt at the global model. 
+```{r}
+# Starting global model: 
+global_1 = '
+feces.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + SAL.d15n + FLV.d15n + sqrt.wrack.std
+COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std
+CUR.d15n ~ SAL.d15n + FLV.d15n
+ISO.d15n ~ soil.d15n + SAL.d15n + FLV.d15n + sqrt.wrack.std
+SAL.d15n ~ soil.d15n
+FLV.d15n ~ soil.d15n 
+soil.d15n ~  sqrt.wrack.std
+'
+
+global_sem_1 <- runMI(global_1,
+                      data = dat_d15n,
+                      fun = "sem", 
+                      miPackage = "mice",
+                      seed = 100, 
+                      m = 100)
+
+fitMeasures(global_sem_1, 
+            fit.measures = "all",
+            baseline.model = NULL, 
+            output = "vector", 
+            omit.imps = c("no.conv", "no.se"))
+```
+These diagnostics are not great. The chi-square value should be < 2x the degrees of freedom, and the p-value should not be significant. 
+The Comparative Fit Index (cfi) should ideally be > 0.95.
+The Root Mean Square Error of Approximation (rmsea) should be < 0.08 or < 0.1 depending on the reference. 
+The Standardized Root Mean Residual (srmr) should also be < 0.08.
+
+Attempt #1 Diagnostics:
+chi-sq: 75.376
+df: 10.000
+cfi: 0.853
+rmsea: 0.260
+srmr: 0.073
+
+I used the following to look at the modification indeces. These should be looked at very critically because it involves looking at the data in order to better fit the model to said data. It can get you to fit associations that make sense numerically but no sense at all biologically. 
+```{r}
+plyr::arrange(modificationIndices.mi(global_sem_1), mi, decreasing = TRUE)
+```
+
+I decided to add in an error correlation between FLV.d15n and SAL.d15n. It seems reasonable that the error of the two plants' isotopes could covary in a way I haven't accounted for (soil moisture, slope, exposure, etc). 
+
+I refit this: 
+```{r}
+global_2 = '
+feces.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + SAL.d15n + FLV.d15n + sqrt.wrack.std
+COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std
+CUR.d15n ~ SAL.d15n + FLV.d15n 
+ISO.d15n ~ soil.d15n + SAL.d15n + FLV.d15n + sqrt.wrack.std
+SAL.d15n ~ soil.d15n
+FLV.d15n ~ soil.d15n 
+soil.d15n ~  sqrt.wrack.std
+FLV.d15n ~~ SAL.d15n
+'
+
+global_sem_2 <- runMI(global_2,
+                      data = dat_d15n,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+
+fitMeasures(global_sem_2,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+```
+
+Attempt #2 Diagnostics:
+chi-sq: 49.246
+df: 9.000
+cfi: 0.909
+rmsea: 0.215
+srmr: 0.061
+
+Slightly better, but not great. I went back to the modification indeces: 
+```{r}
+plyr::arrange(modificationIndices.mi(global_sem_2), mi, decreasing = TRUE)
+```
+
+and I added an error correlation between CUR and soil, since the herbivorous weevils we were surveying likely were not eating the plants that we had surveyed. They likely eat hemlock seedlings. Maybe hemlock seedlings more closely reflects the nutrients in the soil than the plants we had sampled.
+
+This gives:
+```{r}
+global_3 = '
+feces.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + SAL.d15n + FLV.d15n + sqrt.wrack.std
+COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std
+CUR.d15n ~ SAL.d15n + FLV.d15n 
+ISO.d15n ~ soil.d15n + SAL.d15n + FLV.d15n + sqrt.wrack.std
+SAL.d15n ~ soil.d15n
+FLV.d15n ~ soil.d15n 
+soil.d15n ~  sqrt.wrack.std
+FLV.d15n ~~ SAL.d15n
+CUR.d15n ~~ soil.d15n
+'
+
+global_sem_3 <- runMI(global_3,
+                      data = dat_d15n,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+
+fitMeasures(global_sem_3,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+
+```
+
+This is not bad.
+
+Attempt #3 Diagnostics: 
+Chi-sq: 33.190
+df: 8.000
+cfi: 0.943
+rmsea: 0.180
+srmr: 0.066
+
+So close! The p-value for the chi-sq is still significant, and the rmsea is still too high.
+```{r}
+plyr::arrange(modificationIndices.mi(global_sem_3), mi, decreasing = TRUE)
+```
+
+Okay, attempt #4! 
+I am now adding in a correlation between COL.d15n and ISO.d15n because ISO could be eating wrack and COL could be eating amphipods on the wrack but sqrt.wrack.std might not be giving an accurate representation of the presence of wrack over time. The samples were not taken at the same time as the wrack was measured in most cases so there could be some disconnect there. ISO and COL could correlate due to some factor (through wrack deposition) that is not accounted for in this model. 
+```{r}
+global_4 = '
+feces.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + SAL.d15n + FLV.d15n + sqrt.wrack.std
+COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std
+CUR.d15n ~ SAL.d15n + FLV.d15n
+ISO.d15n ~ soil.d15n + SAL.d15n + FLV.d15n + sqrt.wrack.std
+SAL.d15n ~ soil.d15n
+FLV.d15n ~ soil.d15n
+soil.d15n ~  sqrt.wrack.std
+FLV.d15n ~~ SAL.d15n
+CUR.d15n ~~ soil.d15n
+COL.d15n ~~ ISO.d15n
+'
+
+global_sem_4 <- runMI(global_4,
+                      data = dat_d15n,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+
+fitMeasures(global_sem_4,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+```
+
+This looks good! 
+Chi sq: 9.739
+df: 7.000
+cfi: 0.994
+rmsea: 0.064
+srmr: 0.052
+
+Check for multicollinearity. 
+```{r}
+# Based on global_mod_4: 
+feces.mod <- lm(feces.d15n ~ COL.d15n + 
+                  ISO.d15n + 
+                  CUR.d15n + 
+                  SAL.d15n + 
+                  FLV.d15n + 
+                  sqrt.wrack.std, 
+                data = dat_d15n)
+car::vif(feces.mod) # VIF for SAL.d15n and FLV.d15n are greater than 5.
+
+COL.mod <- lm(COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std, data = dat_d15n)
+car::vif(COL.mod) # This is fine.
+
+CUR.mod <- lm(CUR.d15n ~ SAL.d15n + FLV.d15n, data = dat_d15n)
+car::vif(CUR.mod) # SAL and FLV are just over 5. 
+
+ISO.mod <- lm(ISO.d15n ~ soil.d15n + 
+                SAL.d15n + 
+                FLV.d15n +
+                sqrt.wrack.std, data = dat_d15n)
+car::vif(ISO.mod) # soil, salal, flv all over 5.
+
+SAL.mod <- lm(SAL.d15n ~ soil.d15n, data = dat_d15n)
+
+FLV.mod <- lm(FLV.d15n ~ soil.d15n, data = dat_d15n)
+
+soil.mod <- lm(soil.d15n ~  sqrt.wrack.std, data = dat_d15n)
+```
+
+Decision: Too much multicollinearity - going to combine the two plant species into one plant parameter instead. Take an average plant d15N and plant d13C per island to represent primary producers overall.
+
+# Restart with plants now combined:
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(lavaan)
+library(semTools)
+library(mice)
+
+set.seed(123)
+
+dat_d15n <- read.csv("sem-data-d15n-plants-combined.csv")
+
+dat_d13c <- read.csv("sem-data-d13c-plants-combined.csv")
+```
+
+# Model - d15n: 
+```{r}
+global_comb = '
+feces.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + veg.d15n + sqrt.wrack.std
+COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std
+CUR.d15n ~ veg.d15n
+ISO.d15n ~ soil.d15n + veg.d15n + sqrt.wrack.std
+veg.d15n ~ soil.d15n
+soil.d15n ~ sqrt.wrack.std
+'
+
+global_comb_sem <- runMI(global_comb,
+                      data = dat_d15n,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+```
+
+# Check diagnostics: 
+Chi-sq: 47.315
+df: 7.00
+cfi: 0.880
+rmsea: 0.244
+srmr: 0.061
+```{r}
+fitMeasures(global_comb_sem,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+```
+
+# Check multicollinearity:
+```{r}
+feces.mod <- lm(feces.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + veg.d15n + sqrt.wrack.std, data = dat_d15n)
+car::vif(feces.mod) # all < 5
+
+COL.mod <- lm(COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std, data = dat_d15n)
+car::vif(COL.mod) # Good
+
+CUR.mod <- lm(CUR.d15n ~ veg.d15n, data = dat_d15n)
+
+ISO.mod <- lm(ISO.d15n ~ soil.d15n + veg.d15n + sqrt.wrack.std, data = dat_d15n)
+car::vif(ISO.mod) # soil and veg > 5 but there is a regression fit between these two in the SEM so should be fine.
+
+veg.mod <- lm(veg.d15n ~ soil.d15n, data = dat_d15n)
+
+soil.mod <- lm(soil.d15n ~  sqrt.wrack.std, data = dat_d15n)
+```
+
+# Okay, check which terms are problematic for fit: 
+```{r}
+plyr::arrange(modificationIndices.mi(global_comb_sem2), mi, decreasing = TRUE)
+```
+
+# Again adding in CUR.d15n ~~ soil.d15n: 
+The herbivorous weevils we were surveying likely were not eating the exact plants that we had surveyed (although apparently they do eat salal sometimes) they likely prefer to eat hemlock seedlings. Maybe hemlock seedlings more closely reflect the nutrients in the soil than the plants we had sampled.
+```{r}
+global_comb2 = '
+feces.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + veg.d15n + sqrt.wrack.std
+COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std
+CUR.d15n ~ veg.d15n
+ISO.d15n ~ soil.d15n + veg.d15n + sqrt.wrack.std
+veg.d15n ~ soil.d15n
+soil.d15n ~  sqrt.wrack.std
+CUR.d15n ~~ soil.d15n
+'
+
+global_comb_sem2 <- runMI(global_comb2,
+                      data = dat_d15n,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+```
+
+# Check diagnostics again:
+Chi-sq:  25.425
+df: 5.000
+cfi: 0.939
+rmsea: 0.205
+srmr: 0.056
+```{r}
+fitMeasures(global_comb_sem3,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+```
+
+# Okay again check which terms are problematic for fit: 
+```{r}
+plyr::arrange(modificationIndices.mi(global_comb_sem2), mi, decreasing = TRUE)
+```
+
+# I am adding back in a correlation between COL.d15n and ISO.d15n because ISO could be eating wrack and COL could be eating amphipods on the wrack but sqrt.wrack.std might not be giving an accurate representation of the presence of wrack over time. This could cause the two to correlate in a non-causative way. 
+```{r}
+global_comb3 = '
+feces.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + veg.d15n + sqrt.wrack.std
+COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std
+CUR.d15n ~ veg.d15n
+ISO.d15n ~ soil.d15n + veg.d15n + sqrt.wrack.std
+veg.d15n ~ soil.d15n
+soil.d15n ~ sqrt.wrack.std
+CUR.d15n ~~ soil.d15n
+COL.d15n ~~ ISO.d15n
+'
+
+global_comb_sem3 <- runMI(global_comb3,
+                      data = dat_d15n,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+```
+
+# Check diagnostics: 
+Chi-sq:  10.234
+df: 5.000
+cfi: 0.984
+rmsea: 0.104
+srmr: 0.054
+```{r}
+fitMeasures(global_comb_sem3,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+```
+
+# Save output: 
+```{r}
+d15n_plants_combined <- summary(global_comb_sem3, ci = FALSE, fmi = TRUE, output = "data.frame") %>% 
+  dplyr::mutate(ci.lower = est - 1.96 * se) %>% 
+  dplyr::mutate(ci.upper = est + 1.96 * se) %>% 
+  dplyr::filter(!is.na(pvalue)) %>% 
+  arrange(desc(pvalue)) %>% 
+  mutate_if("is.numeric","round", 3)
+
+write.csv(d15n_plants_combined, "data-generated/sem_results_d15n_combined_plants.csv", row.names = FALSE)
+```
+
+# d13C model:
+I'm going to use model #3 from above as a starting point for fitting the d13c model too. I took out the connections from soil.d13c -> SAL.d13c and FLV.d13c since plants get carbon from the air, not the soil: 
+```{r}
+global_comb_c = '
+feces.d13c ~ COL.d13c + ISO.d13c + CUR.d13c + veg.d13c + sqrt.wrack.std
+COL.d13c ~ ISO.d13c + CUR.d13c + sqrt.wrack.std
+CUR.d13c ~ veg.d13c
+ISO.d13c ~ soil.d13c + veg.d13c + sqrt.wrack.std
+veg.d13c ~ soil.d13c
+soil.d13c ~ sqrt.wrack.std
+CUR.d13c ~~ soil.d13c
+COL.d13c ~~ ISO.d13c
+'
+
+global_sem_c <- runMI(global_comb_c,
+                      data = dat_d13c,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+```
+
+# Diagnostics:
+Attempt #1: 
+Chisq: 8.751
+df: 5.000
+cfi: 0.883 <- this isn't perfect but the other diagnostics look good.
+rmsea: 0.088
+srmr: 0.070
+```{r}
+fitMeasures(global_sem_c,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+```
+
+Save the results:
+```{r}
+d13c_plants_combined <- summary(global_sem_c, ci = FALSE, fmi = TRUE, output = "data.frame") %>% 
+  dplyr::mutate(ci.lower = est - 1.96 * se) %>% 
+  dplyr::mutate(ci.upper = est + 1.96 * se) %>% 
+  dplyr::filter(!is.na(pvalue)) %>% 
+  arrange(desc(pvalue)) %>% 
+  mutate_if("is.numeric","round",3)
+
+write.csv(d13c_plants_combined, "data-generated/sem_results_d13c_combined_plants.csv", row.names = FALSE)
+```
+
+# Rerun with feather data: 
+```{r}
+dat_d15n <- dat %>% 
+  dplyr::select(island, l.area.std, sqrt.wrack.std, soil.d15n, veg.d15n, CUR.d15n, ISO.d15n, COL.d15n, feather.d15n)
+
+dat_d13c <- dat %>% 
+  dplyr::select(island, l.area.std, sqrt.wrack.std, soil.d13c, veg.d13c, CUR.d13c, ISO.d13c, COL.d13c, feather.d13c)
+
+global_comb_feather = '
+feather.d15n ~ COL.d15n + ISO.d15n + CUR.d15n + veg.d15n + sqrt.wrack.std
+COL.d15n ~ ISO.d15n + CUR.d15n + sqrt.wrack.std
+CUR.d15n ~ veg.d15n
+ISO.d15n ~ soil.d15n + veg.d15n + sqrt.wrack.std
+veg.d15n ~ soil.d15n
+soil.d15n ~ sqrt.wrack.std
+CUR.d15n ~~ soil.d15n
+COL.d15n ~~ ISO.d15n
+'
+
+global_comb_feather_sem <- runMI(global_comb_feather,
+                      data = dat_d15n,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+
+fitMeasures(global_comb_feather_sem,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+
+
+d15n_plants_combined_feather <- summary(global_comb_feather_sem, ci = FALSE, fmi = TRUE, output = "data.frame") %>% 
+  dplyr::mutate(ci.lower = est - 1.96 * se) %>% 
+  dplyr::mutate(ci.upper = est + 1.96 * se) %>% 
+  dplyr::filter(!is.na(pvalue)) %>% 
+  arrange(desc(pvalue)) %>% 
+  mutate_if("is.numeric","round", 3)
+
+write.csv(d15n_plants_combined_feather, "data-generated/sem_results_d15n_combined_plants_feather.csv", row.names = FALSE)
+
+global_comb_c_feather = '
+feather.d13c ~ COL.d13c + ISO.d13c + CUR.d13c + veg.d13c + sqrt.wrack.std
+COL.d13c ~ ISO.d13c + CUR.d13c + sqrt.wrack.std
+CUR.d13c ~ veg.d13c
+ISO.d13c ~ soil.d13c + veg.d13c + sqrt.wrack.std
+veg.d13c ~ soil.d13c
+soil.d13c ~ sqrt.wrack.std
+CUR.d13c ~~ soil.d13c
+COL.d13c ~~ ISO.d13c
+'
+
+global_comb_c_feather_sem <- runMI(global_comb_c_feather,
+                      data = dat_d13c,
+                      fun = "sem",
+                      miPackage = "mice",
+                      seed = 100,
+                      m = 100)
+
+fitMeasures(global_comb_c_feather_sem,
+            fit.measures = "all",
+            baseline.model = NULL,
+            output = "vector",
+            omit.imps = c("no.conv", "no.se"))
+
+d13c_plants_combined_feather <- summary(global_comb_c_feather_sem, ci = FALSE, fmi = TRUE, output = "data.frame") %>% 
+  dplyr::mutate(ci.lower = est - 1.96 * se) %>% 
+  dplyr::mutate(ci.upper = est + 1.96 * se) %>% 
+  dplyr::filter(!is.na(pvalue)) %>% 
+  arrange(desc(pvalue)) %>% 
+  mutate_if("is.numeric","round", 3)
+
+write.csv(d13c_plants_combined_feather, "data-generated/sem_results_d13c_combined_plants_feather.csv", row.names = FALSE)
+
+```
+
