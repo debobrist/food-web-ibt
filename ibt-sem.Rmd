@@ -23,10 +23,13 @@ library(mice)
 
 set.seed(123)
 
+dat <- read.csv("ibt-sem-data-2021.csv")
 
-dat_d15n <- read.csv("sem-data-d15n.csv")
+dat_d15n <- dat %>% 
+  dplyr::select(island, l.area.std, sqrt.wrack.std, soil.d15n, SAL.d15n, FLV.d15n, CUR.d15n, ISO.d15n, COL.d15n, feces.d15n)
 
-write.csv(dat_d13c, "sem-data-d13c.csv", row.names = FALSE)
+dat_d13c <- dat %>% 
+  dplyr::select(island, l.area.std, sqrt.wrack.std, soil.d13c, SAL.d13c, FLV.d13c, CUR.d13c, ISO.d13c, COL.d13c, feces.d13c)
 ```
 
 This was my first attempt at the global model. 
@@ -238,9 +241,13 @@ library(mice)
 
 set.seed(123)
 
-dat_d15n <- read.csv("sem-data-d15n-plants-combined.csv")
+dat <- read.csv("ibt-sem-data-2021-plants-combined.csv")
 
-dat_d13c <- read.csv("sem-data-d13c-plants-combined.csv")
+dat_d15n <- dat %>% 
+  dplyr::select(island, l.area.std, sqrt.wrack.std, soil.d15n, veg.d15n, CUR.d15n, ISO.d15n, COL.d15n, feces.d15n)
+
+dat_d13c <- dat %>% 
+  dplyr::select(island, l.area.std, sqrt.wrack.std, soil.d13c, veg.d13c, CUR.d13c, ISO.d13c, COL.d13c, feces.d13c)
 ```
 
 # Model - d15n: 
